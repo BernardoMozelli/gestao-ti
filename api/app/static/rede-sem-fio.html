@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rede Sem Fio · Gestão TI</title>
+<link rel="stylesheet" href="/static/estilo.css">
+<script src="/static/sweetalert2.all.min.js"></script>
+<script src="/static/comum.js"></script>
+</head>
+<body>
+<section id="tela-app" class="oculto">
+  <header id="topo"></header>
+  <main class="conteudo">
+    <div class="saudacao"><h1>Rede Sem Fio</h1><p>Escolha o que você quer gerenciar.</p></div>
+    <div class="modulos" id="modulos"></div>
+  </main>
+</section>
+<script>
+async function abrir() {
+  if (!await exigirSessao('wifi', 'wifi_visitante')) return;
+  montarTopo('Rede Sem Fio', 'wifi');
+  const mods = EU.catalogo.filter(m => m.grupo === 'rede_sem_fio' && EU.modulos.includes(m.id));
+  $('#modulos').innerHTML = mods.map(m => `<a class="modulo" href="${esc(m.url)}">
+    <span class="ico">${icone(m.icone, 24)}</span><h3>${esc(m.nome)}</h3><p>${esc(m.descricao)}</p></a>`).join('');
+  $('#tela-app').classList.remove('oculto');
+}
+carregarMarca().then(abrir);
+</script>
+</body>
+</html>

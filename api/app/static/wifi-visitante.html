@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wi-Fi Visitante · Gestão TI</title>
+<link rel="stylesheet" href="/static/estilo.css">
+<script src="/static/sweetalert2.all.min.js"></script>
+<script src="/static/comum.js"></script>
+</head>
+<body>
+<section id="tela-app" class="oculto">
+  <header id="topo"></header>
+  <main class="conteudo">
+    <div class="barra">
+      <nav class="abas" id="abas">
+        <button class="aba ativa" data-aba="ativos">Ativos<span class="cont" id="c-ativos">…</span></button>
+        <button class="aba" data-aba="inativos">Inativos<span class="cont" id="c-inativos">…</span></button>
+        <button class="aba" data-aba="historico">Histórico</button>
+      </nav>
+    </div>
+    <div class="filtros diretorio" id="filtros"><input class="entrada" id="f-busca" placeholder="Digite nome, CPF, e-mail ou celular (mínimo 3 caracteres)" autocomplete="off" autofocus></div>
+    <div id="dica" class="dica-outra-aba oculto"></div>
+    <div id="conteudo" class="lista"></div>
+  </main>
+</section>
+
+<script>
+const chamar = (c, o) => api(c, o, irParaInicio);
+let aba = 'ativos', LISTA = [], LIMITE = 100;
+const NOMES = { visitante_senha_trocada: 'Senha trocada', visitante_senha_falhou: 'Troca de senha falhou',
+  visitante_ativado: 'Cadastro ativado', visitante_desativado: 'Cadastro desativado' };
+
+async function abrir() {
+  if (!await exigirSessao('wifi_visitante')) return;
+  montarTopo('Wi-Fi Visitante', 'visitante', { url: '/m/rede-sem-fio', texto: 'Rede Sem Fio', icone: 'wifi' });
+  $('#tela-app').classList.remove('oculto');
+  try { carregar._config = (await chamar('/api/visitante/visitantes')).configurado; } catch {}
+  carregar();
+}
+function trocarAba(nova) {
+  aba = nova; LIMITE = 100;
+  document.querySelectorAll('.aba').forEach(x => x.classList.toggle('ativa', x.dataset.aba === aba));
+  $('#filtros').classList.toggle('oculto', aba === 'historico');
+  carregar();
+}
+$('#abas').addEventListener('click', ev => { const b = ev.target.closest('.aba'); if (b) trocarAba(b.dataset.aba); });
+$('#f-busca').addEventListener('input', () => { clearTimeout(carregar._t); carregar._t = setTimeout(() => { LIMITE = 100; carregar(); }, 350); });
+
+// Total de ativos e inativos do portal (sem carregar a lista); com busca, as abas mostram o resultado da busca
+let TOTAIS = null;
+async function mostrarTotais(recarregar = false) {
+  $('#c-ativos').textContent = TOTAIS ? numero(TOTAIS.ativos) : '…'; $('#c-inativos').textContent = TOTAIS ? numero(TOTAIS.inativos) : '…';
+  if (TOTAIS && !recarregar) return;
+  try {
+    const r = await chamar('/api/visitante/totais');
+    if (!r.configurado) { $('#c-ativos').textContent = '–'; $('#c-inativos').textContent = '–'; return; }
+    TOTAIS = r;
+  } catch { TOTAIS = null; $('#c-ativos').textContent = '–'; $('#c-inativos').textContent = '–'; return; }
+  if ($('#f-busca').value.trim().length < 3) { $('#c-ativos').textContent = numero(TOTAIS.ativos); $('#c-inativos').textContent = numero(TOTAIS.inativos); }
+}
+
+function semConfiguracao(msg) {
+  const podeConfigurar = EU.modulos.includes('configuracoes');
+  $('#conteudo').innerHTML = `<div class="vazio pilha" style="justify-items:center">
+    <b>${esc(msg)}</b>
+    ${podeConfigurar ? '<a class="btn primario" href="/m/configuracoes#wifi-visitante">Abrir Configurações</a>' : '<span>Peça à equipe da TI para configurar em Configurações → Wi-Fi Visitante.</span>'}</div>`;
+}
+
+async function carregar() {
+  $('#dica').classList.add('oculto');
+  try {
+    if (aba === 'historico') return renderHistorico(await chamar('/api/visitante/historico'));
+    const termo = $('#f-busca').value.trim();
+    if (termo.length < 3) {   // nada e carregado sem busca
+      carregar._ctl?.abort(); LISTA = [];
+      mostrarTotais();
+      $('#conteudo').classList.remove('carregando');
+      if (carregar._config === false) return semConfiguracao('O banco do Wi-Fi Visitante ainda não foi configurado.');
+      $('#conteudo').innerHTML = `<div class="vazio">${termo ? 'Digite pelo menos 3 caracteres.' : 'Digite o nome, o CPF, o e-mail ou o celular do visitante para buscar.'}</div>`;
+      $('#f-busca').focus();
+      return;
+    }
+    if (!LISTA.length) $('#conteudo').innerHTML = '<div class="vazio">Buscando…</div>';
+    carregar._ctl?.abort();
+    const ctl = carregar._ctl = new AbortController();
+    $('#conteudo').classList.add('carregando');
+    let r;
+    try { r = await chamar('/api/visitante/visitantes?' + new URLSearchParams({ q: $('#f-busca').value.trim(), situacao: aba, limite: LIMITE }), { signal: ctl.signal }); }
+    catch (e) { if (e.name === 'AbortError') return; throw e; }
+    finally { if (carregar._ctl === ctl) $('#conteudo').classList.remove('carregando'); }
+    carregar._config = r.configurado;
+    if (!r.configurado) { LISTA = []; return semConfiguracao('O banco do Wi-Fi Visitante ainda não foi configurado.'); }
+    LISTA = r.itens;
+    const mais = r.mais_resultados ? '+' : '';
+    $('#c-ativos').textContent = numero(r.contagem.ativos) + mais; $('#c-inativos').textContent = numero(r.contagem.inativos) + mais;
+    const outra = aba === 'ativos' ? 'inativos' : 'ativos', naOutra = r.contagem[outra];
+    if ($('#f-busca').value.trim() && naOutra) {
+      $('#dica').innerHTML = `${r.total ? '' : 'Nada aqui. '}${naOutra} resultado${naOutra > 1 ? 's' : ''} em <button type="button" id="ir-outra">${outra === 'ativos' ? 'Ativos' : 'Inativos'}</button>.`;
+      $('#dica').classList.remove('oculto'); $('#ir-outra').onclick = () => trocarAba(outra);
+    }
+    render(r.total);
+    if (r.mais_resultados) $('#conteudo').insertAdjacentHTML('afterbegin', '<div class="dica-outra-aba">Mais de 500 visitantes batem com essa busca. Digite mais (o CPF completo, o nome e sobrenome ou o e-mail) para achar a pessoa.</div>');
+  } catch (e) { LISTA = []; semConfiguracao(e.message); }
+}
+
+function render(total) {
+  if (!LISTA.length) { $('#conteudo').innerHTML = `<div class="vazio">${$('#f-busca').value.trim() ? 'Ninguém encontrado nesta aba.' : 'Nenhum visitante aqui.'}</div>`; return; }
+  $('#conteudo').innerHTML = LISTA.map((v, i) => `<article class="item">
+    <div class="topo-item"><b>${esc(v.nome)}</b>${v.tem_login ? `<span class="tag indigo" title="Usuário no portal do Wi-Fi">Login ${esc(v.login)}</span>` : '<span class="tag negada">Sem login no RADIUS</span>'}
+      <span class="tag ${v.ativo ? 'aprovada' : 'negada'}">${v.ativo ? 'Ativo' : 'Inativo'}</span></div>
+    <div class="meta"><span>CPF ${esc(v.cpf)}</span>${v.email ? `<span>${esc(v.email)}</span>` : ''}${v.celular ? `<span>${esc(v.celular)}</span>` : ''}</div>
+    <div class="acoes">
+      <button class="btn peq ${v.ativo ? 'contorno-perigo' : ''}" data-op="ativo" data-i="${i}">${v.ativo ? 'Desativar' : 'Ativar'}</button>
+      <button class="btn peq primario" data-op="senha" data-i="${i}" ${v.tem_login ? '' : 'disabled'}>Trocar senha</button>
+    </div></article>`).join('')
+    + (total > LISTA.length ? `<div class="mais"><button class="btn" id="btn-mais">Mostrar mais (${numero(total - LISTA.length)} restantes)</button></div>` : '');
+  $('#btn-mais')?.addEventListener('click', () => { LIMITE += 200; carregar(); });
+}
+$('#conteudo').addEventListener('click', ev => {
+  const b = ev.target.closest('button[data-op]'); if (!b) return;
+  const v = LISTA[Number(b.dataset.i)];
+  b.dataset.op === 'senha' ? trocarSenha(v) : alternar(v);
+});
+
+async function trocarSenha(v) {
+  const r = await Swal.fire({ title: `Trocar a senha de ${esc(v.nome)}`, width: 620, showCancelButton: true, confirmButtonText: 'Trocar senha', cancelButtonText: 'Voltar',
+    html: `<div class="pilha" style="text-align:left">
+      <p style="margin:0;color:var(--suave)">Login no portal: <b>${esc(v.login)}</b></p>
+      <div class="opcoes-radio">
+        <label><span><input type="radio" name="sw-modo" value="gerar" checked><b>Gerar senha</b></span><small>Fácil de digitar no celular (ex.: praia4821).</small></label>
+        <label><span><input type="radio" name="sw-modo" value="digitar"><b>Digitar a senha</b></span><small>No mínimo 6 caracteres, sem acento.</small></label>
+      </div>
+      <div class="campo oculto" id="sw-caixa"><label for="sw-senha">Nova senha</label><input class="entrada" id="sw-senha" autocomplete="off"></div>
+      ${v.ativo ? '' : '<label class="marcar"><input type="checkbox" id="sw-reativar" checked> Reativar o cadastro (está inativo)</label>'}
+      ${v.email ? `<label class="marcar"><input type="checkbox" id="sw-email"> Enviar a nova senha para ${esc(v.email)}</label>` : ''}
+      <div class="campo"><label for="sw-motivo">Motivo (opcional)</label><input class="entrada" id="sw-motivo" placeholder="ex.: visitante esqueceu a senha"></div></div>`,
+    didOpen: () => document.querySelectorAll('input[name=sw-modo]').forEach(x => x.addEventListener('change', () =>
+      $('#sw-caixa').classList.toggle('oculto', document.querySelector('input[name=sw-modo]:checked').value !== 'digitar'))),
+    preConfirm: () => {
+      const gerar = document.querySelector('input[name=sw-modo]:checked').value === 'gerar', senha = $('#sw-senha').value.trim();
+      if (!gerar && senha.length < 6) return Swal.showValidationMessage('A senha precisa ter pelo menos 6 caracteres.');
+      return { gerar, senha: gerar ? null : senha, reativar: $('#sw-reativar')?.checked ?? false, enviar_email: $('#sw-email')?.checked ?? false, motivo: $('#sw-motivo').value.trim() || null };
+    } });
+  if (!r.isConfirmed) return;
+  try {
+    Swal.fire({ title: 'Trocando a senha…', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    const res = await chamar(`/api/visitante/visitantes/${v.id}/trocar-senha`, { method: 'POST', body: JSON.stringify(r.value) });
+    const email = res.email_enviado === true ? `<p class="ok-txt">Senha enviada para ${esc(res.email)}.</p>`
+      : (res.email_enviado ? `<p class="erro-txt">Não foi possível enviar por e-mail: ${esc(res.email_enviado)}.</p>` : '');
+    await Swal.fire({ icon: 'success', title: 'Senha trocada', width: 560, confirmButtonText: 'Fechar',
+      html: `<p>Nova senha de <b>${esc(v.nome)}</b>:</p>
+        <div class="senha-gerada">${esc(res.senha)}</div>
+        <button class="btn" id="sw-copiar" type="button">Copiar</button>
+        <p style="font-size:14px;color:var(--suave)">Login: <b>${esc(v.login)}</b>. O visitante já pode entrar com a senha nova.${res.reativado ? ' O cadastro foi reativado.' : ''}<br>A senha não será mostrada de novo.</p>${email}`,
+      didOpen: () => { $('#sw-copiar').onclick = () => navigator.clipboard?.writeText(res.senha).then(() => toast('Senha copiada.')); } });
+    if (res.reativado) TOTAIS = null;
+    carregar();
+  } catch (e) { Swal.fire({ icon: 'error', title: 'Não foi possível trocar a senha', text: e.message }); }
+}
+
+async function alternar(v) {
+  const ativar = !v.ativo;
+  const r = await Swal.fire({ icon: 'question', title: `${ativar ? 'Ativar' : 'Desativar'} o cadastro de ${esc(v.nome)}?`, input: 'text', inputLabel: 'Motivo (opcional)',
+    showCancelButton: true, confirmButtonText: ativar ? 'Ativar' : 'Desativar', cancelButtonText: 'Voltar', customClass: ativar ? {} : { confirmButton: 'perigo' } });
+  if (!r.isConfirmed) return;
+  try { await chamar(`/api/visitante/visitantes/${v.id}/ativo`, { method: 'POST', body: JSON.stringify({ ativo: ativar, motivo: r.value || null }) }); toast(ativar ? 'Cadastro ativado.' : 'Cadastro desativado.'); TOTAIS = null; carregar(); }
+  catch (e) { erro(e); }
+}
+
+function renderHistorico(lista) {
+  if (!lista.length) { $('#conteudo').innerHTML = '<div class="vazio">Nenhuma alteração registrada ainda.</div>'; return; }
+  $('#conteudo').innerHTML = `<div class="item">${lista.map(e => `<div class="evento"><span class="q">${dataHora(e.criado_em)}</span><span><b>${esc(NOMES[e.acao] || e.acao)}</b> · por ${esc(e.autor)}${e.ip ? ` · IP ${esc(e.ip)}` : ''}<br><span class="q">${esc(e.detalhe || '')}</span></span></div>`).join('')}</div>`;
+}
+
+carregarMarca().then(abrir);
+</script>
+</body>
+</html>

@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Configurações · Gestão TI</title>
+<link rel="stylesheet" href="/static/estilo.css">
+<script src="/static/sweetalert2.all.min.js"></script>
+<script src="/static/comum.js"></script>
+</head>
+<body>
+<section id="tela-app" class="oculto">
+  <header id="topo"></header>
+  <main class="conteudo pilha cfg">
+
+    <p class="aviso-teste oculto" id="aviso-teste"></p>
+    <p class="aviso-env oculto" id="aviso-env">Alguns valores ainda vêm do arquivo <code>.env</code> do servidor. Ao salvar aqui, passam a valer os desta tela.</p>
+
+    <!-- 1. Conta que envia -->
+    <section class="cartao pilha">
+      <div class="cfg-titulo"><span class="num">1</span><div><h2>Conta de envio</h2>
+        <p class="ajuda">Todos os e-mails da Gestão TI saem desta conta. Ela é fixa no sistema e não pode ser trocada.</p></div></div>
+      <div class="linha-campos">
+        <div class="campo"><label for="SMTP_FROM">E-mail da conta <span class="tag fixo">fixo</span></label><input class="entrada fixa" id="SMTP_FROM" readonly tabindex="-1"></div>
+        <div class="campo"><label for="SMTP_FROM_NOME">Nome que aparece para quem recebe</label><input class="entrada" id="SMTP_FROM_NOME" placeholder="Prefeitura Municipal de Santa Luzia"></div>
+      </div>
+      <label class="marcar caixa-opcao teste"><input type="checkbox" id="EMAIL_TESTE_ATIVO">
+        <span><b>Modo de teste: enviar por outra conta</b><small>Use enquanto a geral@ não estiver liberada no servidor de e-mail. Ligado, todos os envios da Gestão TI
+          (disparos, e-mail de teste e senha de visitante) saem do e-mail de teste, e a tela de disparos mostra o aviso “modo de teste”. Desligue para voltar à geral@.</small></span></label>
+      <div class="campo oculto" id="bloco-teste" style="max-width:560px"><label for="EMAIL_TESTE">E-mail de teste</label>
+        <input class="entrada" id="EMAIL_TESTE" placeholder="ex.: seu.nome@santaluzia.mg.gov.br" autocomplete="off">
+        <p class="ajuda">Normalmente o mesmo e-mail do login abaixo: o servidor só deixa enviar com o e-mail da própria conta.
+          <button type="button" class="link-azul" id="usar-login">Usar o usuário de login</button></p></div>
+      <div class="campo"><label>Login no servidor de e-mail</label>
+        <div class="opcoes-radio" id="login-modo">
+          <label><span><input type="radio" name="login" value="conta"><b>Com o e-mail da conta</b></span><small>O mais comum: usuário = e-mail acima.</small></label>
+          <label><span><input type="radio" name="login" value="outro"><b>Com outro usuário</b></span><small>O servidor pede um login diferente.</small></label>
+          <label><span><input type="radio" name="login" value="sem"><b>Sem login</b></span><small>Servidor interno que aceita sem senha.</small></label>
+        </div></div>
+      <div class="linha-campos" id="bloco-login">
+        <div class="campo oculto" id="caixa-usuario"><label for="SMTP_USER">Usuário de login</label><input class="entrada" id="SMTP_USER" autocomplete="off"></div>
+        <div class="campo"><label for="SMTP_PASSWORD">Senha da conta</label>
+          <div class="senha-caixa"><input class="entrada" id="SMTP_PASSWORD" type="password" autocomplete="new-password">
+            <button type="button" id="olho" aria-label="Mostrar senha"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12Z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
+          <p class="ajuda" id="senha-status"></p></div>
+      </div>
+    </section>
+
+    <!-- 2. Servidor -->
+    <section class="cartao pilha">
+      <div class="cfg-titulo"><span class="num">2</span><div><h2>Servidor de e-mail</h2>
+        <p class="ajuda">Escolha o tipo: servidor, porta e segurança são preenchidos sozinhos.</p></div></div>
+      <div class="campo" style="max-width:460px"><label for="tipo">Tipo de servidor</label>
+        <select class="entrada" id="tipo">
+          <option value="proprio">Servidor de e-mail da prefeitura</option>
+          <option value="m365">Microsoft 365 / Exchange Online</option>
+          <option value="google">Google Workspace / Gmail</option>
+          <option value="mailpit">Teste (Mailpit — nada sai de verdade)</option>
+          <option value="outro">Outro (preencher manualmente)</option>
+        </select></div>
+      <p class="dica-tipo" id="dica"></p>
+      <div class="linha-campos servidor">
+        <div class="campo"><label for="SMTP_HOST">Endereço do servidor</label><input class="entrada" id="SMTP_HOST" placeholder="ex.: smtp.santaluzia.mg.gov.br"></div>
+        <div class="campo"><label for="SMTP_PORT">Porta</label><input class="entrada" id="SMTP_PORT" type="number" min="1" max="65535"></div>
+        <div class="campo"><label for="SMTP_SEGURANCA">Segurança</label>
+          <select class="entrada" id="SMTP_SEGURANCA"><option value="starttls">STARTTLS</option><option value="ssl">SSL</option><option value="nenhuma">Nenhuma</option></select></div>
+      </div>
+      <div class="barra" style="margin:0">
+        <button class="btn" id="btn-testar">Testar conexão</button>
+        <button class="btn" id="btn-enviar-teste">Enviar e-mail de teste</button>
+      </div>
+    </section>
+
+    <!-- 3. Limites -->
+    <details class="cartao avancado" id="limites">
+      <summary><div class="cfg-titulo"><span class="num">3</span><div><h2>Limites dos disparos</h2>
+        <p class="ajuda" id="resumo-limites"></p></div></div></summary>
+      <div class="linha-campos" style="margin-top:14px">
+        <div class="campo"><label for="por_minuto">E-mails por minuto</label><input class="entrada" id="por_minuto" type="number" min="1" max="1200" placeholder="sem limite">
+          <p class="ajuda">Vazio = sem limite. Microsoft 365 e Google: até 30.</p></div>
+        <div class="campo"><label for="LISTA_MAX_EMAILS">Destinatários por disparo</label><input class="entrada" id="LISTA_MAX_EMAILS" type="number" min="1"></div>
+        <div class="campo"><label for="ANEXOS_MAX_MB">Anexos por disparo (MB)</label><input class="entrada" id="ANEXOS_MAX_MB" type="number" min="1" max="50"></div>
+        <div class="campo"><label for="IMAGEM_MAX_MB">Imagem no texto (MB)</label><input class="entrada" id="IMAGEM_MAX_MB" type="number" min="1" max="20"></div>
+      </div>
+    </details>
+
+    <!-- 4. Wi-Fi Visitante -->
+    <section class="cartao pilha" id="wifi-visitante">
+      <div class="cfg-titulo"><span class="num">4</span><div><h2>Wi-Fi Visitante (banco do portal)</h2>
+        <p class="ajuda">O portal do Wi-Fi de visitantes guarda os cadastros e as senhas num banco MySQL. A Gestão TI lê esse banco para listar os visitantes
+          e grava lá a senha nova quando a TI troca. O visitante entra com a senha nova na hora.</p></div></div>
+
+      <h3 class="sub-cfg">Banco de dados (MySQL)</h3>
+      <div class="linha-campos">
+        <div class="campo"><label for="RADIUS_DB_HOST">Servidor do banco</label><input class="entrada" id="RADIUS_DB_HOST" placeholder="10.1.0.4">
+          <p class="ajuda">IP ou nome do servidor onde está o MySQL do portal.</p></div>
+        <div class="campo"><label for="RADIUS_DB_PORTA">Porta do banco</label><input class="entrada" id="RADIUS_DB_PORTA" type="number" min="1" max="65535" placeholder="3306">
+          <p class="ajuda">Quase sempre 3306.</p></div>
+        <div class="campo"><label for="RADIUS_DB_NOME">Nome do banco</label><input class="entrada" id="RADIUS_DB_NOME" placeholder="radio">
+          <p class="ajuda">O banco (schema) do portal. No servidor atual: <code>radio</code>.</p></div>
+      </div>
+      <div class="linha-campos">
+        <div class="campo"><label for="RADIUS_DB_USUARIO">Usuário do banco</label><input class="entrada" id="RADIUS_DB_USUARIO" autocomplete="off" placeholder="ex.: root">
+          <p class="ajuda">Usuário do <b>MySQL</b> (não é o usuário do servidor). Recomendado: um usuário só para a Gestão TI, veja abaixo.</p></div>
+        <div class="campo"><label for="RADIUS_DB_SENHA">Senha do banco</label>
+          <div class="senha-caixa"><input class="entrada" id="RADIUS_DB_SENHA" type="password" autocomplete="new-password"><button type="button" class="olho" data-alvo="RADIUS_DB_SENHA" aria-label="Mostrar senha"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12Z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
+          <p class="ajuda" id="st-senha-db"></p></div>
+      </div>
+
+      <h3 class="sub-cfg">Acesso ao servidor</h3>
+      <label class="marcar caixa-opcao"><input type="checkbox" id="RADIUS_SSH">
+        <span><b>Conectar por SSH no servidor</b><small>Marque se o MySQL só aceita conexões do próprio servidor (o padrão do usuário root).
+          A Gestão TI entra no servidor por SSH e fala com o banco por dentro dele. Se o MySQL aceita conexão de fora pela porta 3306, deixe desmarcado.</small></span></label>
+      <div id="bloco-ssh" class="pilha oculto">
+        <div class="linha-campos">
+          <div class="campo"><label for="RADIUS_SSH_HOST">Servidor SSH</label><input class="entrada" id="RADIUS_SSH_HOST" placeholder="o mesmo do banco">
+            <p class="ajuda">Deixe vazio se for o mesmo servidor do banco.</p></div>
+          <div class="campo"><label for="RADIUS_SSH_PORTA">Porta SSH</label><input class="entrada" id="RADIUS_SSH_PORTA" type="number" min="1" max="65535" placeholder="22">
+            <p class="ajuda">Quase sempre 22.</p></div>
+        </div>
+        <div class="linha-campos">
+          <div class="campo"><label for="RADIUS_SSH_USUARIO">Usuário do servidor</label><input class="entrada" id="RADIUS_SSH_USUARIO" autocomplete="off" placeholder="ex.: root">
+            <p class="ajuda">Usuário de login no <b>Linux</b> do servidor (o mesmo usado no SSH/PuTTY).</p></div>
+          <div class="campo"><label for="RADIUS_SSH_SENHA">Senha do servidor</label>
+            <div class="senha-caixa"><input class="entrada" id="RADIUS_SSH_SENHA" type="password" autocomplete="new-password"><button type="button" class="olho" data-alvo="RADIUS_SSH_SENHA" aria-label="Mostrar senha"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12Z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
+            <p class="ajuda" id="st-senha-ssh"></p></div>
+        </div>
+      </div>
+
+      <details class="sub-detalhe">
+        <summary>Tabelas do portal (avançado)</summary>
+        <div class="linha-campos" style="margin-top:10px">
+          <div class="campo"><label for="RADIUS_TABELA_USUARIOS">Tabela dos cadastros</label><input class="entrada" id="RADIUS_TABELA_USUARIOS" placeholder="reg_users">
+            <p class="ajuda">Nome, CPF, e-mail, celular e se o cadastro está ativo. A coluna <code>idradcheck</code> liga o cadastro ao login.</p></div>
+          <div class="campo"><label for="RADIUS_TABELA_SENHAS">Tabela das senhas</label><input class="entrada" id="RADIUS_TABELA_SENHAS" placeholder="radcheck">
+            <p class="ajuda">Login (<code>username</code>) e senha (<code>value</code>) do RADIUS. A senha fica em código (ex.: MD5), conforme a coluna <code>attribute</code>; a Gestão TI grava no mesmo formato.</p></div>
+        </div>
+      </details>
+      <details class="sub-detalhe">
+        <summary>Recomendado: criar um usuário do MySQL só para a Gestão TI</summary>
+        <p class="ajuda" style="margin:10px 0 6px">Em vez do root, entre no servidor do banco (SSH/PuTTY), abra o MySQL com <code>mysql -u root -p</code> (ou <code>sudo mysql</code>) e rode os comandos abaixo, trocando a senha. Depois use <b>gestaoti</b> e essa senha nos campos acima, com “Conectar por SSH” marcado.</p>
+        <pre class="codigo">CREATE USER 'gestaoti'@'localhost' IDENTIFIED BY 'uma-senha-forte';
+CREATE USER 'gestaoti'@'127.0.0.1' IDENTIFIED BY 'uma-senha-forte';
+GRANT SELECT, UPDATE ON radio.reg_users TO 'gestaoti'@'localhost', 'gestaoti'@'127.0.0.1';
+GRANT SELECT, UPDATE ON radio.radcheck  TO 'gestaoti'@'localhost', 'gestaoti'@'127.0.0.1';
+FLUSH PRIVILEGES;</pre>
+        <p class="ajuda" style="margin:6px 0 0">Com isso a Gestão TI só consegue ler e alterar essas duas tabelas. Por que não o root: em muitos servidores o root do MySQL só entra pelo terminal do próprio servidor e recusa programas.</p>
+      </details>
+
+      <div class="barra" style="margin:0">
+        <button class="btn" id="btn-testar-radius">Testar conexão</button>
+        <button class="btn" id="btn-conferir">Conferir formato da senha</button>
+      </div>
+      <div id="resultado-radius"></div>
+    </section>
+
+    <div class="barra-salvar" id="barra-salvar">
+      <span id="estado-salvar" class="q">Tudo salvo.</span>
+      <button class="btn" id="btn-desfazer" disabled>Desfazer</button>
+      <button class="btn primario" id="btn-salvar" disabled>Salvar</button>
+    </div>
+  </main>
+</section>
+
+<script>
+const chamar = (c, o) => api(c, o, irParaInicio);
+const TIPOS = {
+  proprio: { SMTP_PORT: 587, SMTP_SEGURANCA: 'starttls', dica: 'Peça ao responsável pelo e-mail da prefeitura o endereço do servidor. A conta precisa poder enviar por SMTP.' },
+  m365: { SMTP_HOST: 'smtp.office365.com', SMTP_PORT: 587, SMTP_SEGURANCA: 'starttls', por_minuto: 30,
+    dica: 'Microsoft 365: o "SMTP autenticado" precisa estar ativado na conta. Limite de cerca de 10 mil destinatários por dia e 30 mensagens por minuto.' },
+  google: { SMTP_HOST: 'smtp.gmail.com', SMTP_PORT: 587, SMTP_SEGURANCA: 'starttls', por_minuto: 30,
+    dica: 'Google: use uma "senha de app" (a conta precisa de verificação em duas etapas). Limite de cerca de 2 mil e-mails por dia no Workspace.' },
+  mailpit: { SMTP_HOST: 'mailpit', SMTP_PORT: 1025, SMTP_SEGURANCA: 'nenhuma', login: 'sem',
+    dica: 'Os e-mails aparecem em http://localhost:8025 e não chegam a ninguém. Só funciona na instalação local.' },
+  outro: { dica: 'Preencha os dados que o provedor de e-mail informou.' },
+};
+let ATUAL = null, RAD = null, BASE = '', BASE_RAD = '';
+const CAMPOS_RAD = ['RADIUS_DB_HOST', 'RADIUS_DB_PORTA', 'RADIUS_DB_NOME', 'RADIUS_DB_USUARIO', 'RADIUS_SSH_HOST', 'RADIUS_SSH_PORTA', 'RADIUS_SSH_USUARIO', 'RADIUS_TABELA_USUARIOS', 'RADIUS_TABELA_SENHAS'];
+
+async function abrir() {
+  if (!await exigirSessao('configuracoes')) return;
+  montarTopo('Configurações', 'engrenagem');
+  $('#tela-app').classList.remove('oculto');
+  await carregar();
+}
+async function carregar() {
+  try {
+    [ATUAL, RAD] = await Promise.all([chamar('/api/configuracoes/email'), chamar('/api/configuracoes/radius')]);
+    preencherRadius(RAD); preencher(ATUAL);
+    if (location.hash === '#wifi-visitante') $('#wifi-visitante').scrollIntoView({ behavior: 'smooth' });
+  } catch (e) { erro(e); }
+}
+function preencherRadius(d) {
+  CAMPOS_RAD.forEach(k => { $('#' + k).value = d[k] ?? ''; });
+  $('#RADIUS_SSH').checked = String(d.RADIUS_SSH).toLowerCase() === 'sim';
+  for (const [campo, tem, st] of [['RADIUS_DB_SENHA', d.tem_senha_db, 'st-senha-db'], ['RADIUS_SSH_SENHA', d.tem_senha_ssh, 'st-senha-ssh']]) {
+    $('#' + campo).value = '';
+    $('#' + campo).placeholder = tem ? '•••••••• guardada (digite só para trocar)' : 'digite a senha';
+    $('#' + st).textContent = tem ? 'Senha guardada com criptografia.' : '';
+  }
+  $('#bloco-ssh').classList.toggle('oculto', !$('#RADIUS_SSH').checked);
+  BASE_RAD = JSON.stringify(lerRadius());
+}
+function lerRadius() {
+  const d = {};
+  CAMPOS_RAD.forEach(k => { const v = $('#' + k).value.trim(); d[k] = /PORTA/.test(k) ? (v === '' ? null : Number(v)) : v; });
+  d.RADIUS_SSH = $('#RADIUS_SSH').checked ? 'sim' : 'nao';
+  d.RADIUS_DB_SENHA = $('#RADIUS_DB_SENHA').value; d.RADIUS_SSH_SENHA = $('#RADIUS_SSH_SENHA').value;
+  return d;
+}
+
+// Pausa (ms) <-> e-mails por minuto (o envio leva ~50 ms alem da pausa)
+const msParaMinuto = ms => ms ? Math.max(1, Math.floor(60000 / (ms + 50))) : '';
+const minutoParaMs = n => n ? Math.max(0, Math.round(60000 / n - 50)) : 0;
+const loginModo = () => document.querySelector('input[name=login]:checked')?.value || 'conta';
+function tipoDoServidor(d) {
+  if (d.SMTP_HOST === 'smtp.office365.com') return 'm365';
+  if (d.SMTP_HOST === 'smtp.gmail.com') return 'google';
+  if (d.SMTP_HOST === 'mailpit') return 'mailpit';
+  return d.SMTP_HOST ? 'proprio' : 'proprio';
+}
+
+function preencher(d) {
+  ['SMTP_FROM', 'SMTP_FROM_NOME', 'SMTP_HOST', 'SMTP_PORT', 'SMTP_SEGURANCA', 'SMTP_USER', 'LISTA_MAX_EMAILS', 'ANEXOS_MAX_MB', 'IMAGEM_MAX_MB']
+    .forEach(k => { $('#' + k).value = d[k] ?? ''; });
+  $('#por_minuto').value = msParaMinuto(d.ENVIO_PAUSA_MS);
+  $('#SMTP_FROM').value = d.CONTA_OFICIAL;   // a conta oficial e fixa; o modo de teste e separado
+  $('#EMAIL_TESTE_ATIVO').checked = String(d.EMAIL_TESTE_ATIVO).toLowerCase() === 'sim';
+  $('#EMAIL_TESTE').value = d.EMAIL_TESTE || '';
+  $('#aviso-teste').innerHTML = d.conta_efetiva !== d.CONTA_OFICIAL ? `<b>Modo de teste ligado.</b> Os e-mails estão saindo de <b>${esc(d.conta_efetiva)}</b>, não da ${esc(d.CONTA_OFICIAL)}.` : '';
+  $('#aviso-teste').classList.toggle('oculto', d.conta_efetiva === d.CONTA_OFICIAL);
+  const modo = !d.SMTP_USER ? 'sem' : (d.SMTP_USER.toLowerCase() === (d.CONTA_OFICIAL || '').toLowerCase() ? 'conta' : 'outro');
+  document.querySelector(`input[name=login][value=${modo}]`).checked = true;
+  $('#tipo').value = tipoDoServidor(d);
+  $('#dica').textContent = TIPOS[$('#tipo').value].dica;
+  $('#SMTP_PASSWORD').value = '';
+  $('#SMTP_PASSWORD').placeholder = d.tem_senha ? '•••••••• guardada (digite só para trocar)' : 'digite a senha da conta';
+  $('#senha-status').innerHTML = d.tem_senha ? 'Senha guardada com criptografia. <button type="button" class="link" id="apagar">Apagar senha</button>' : '';
+  $('#apagar')?.addEventListener('click', apagarSenha);
+  $('#aviso-env').classList.toggle('oculto', !Object.entries(d.origem).some(([k, o]) => o === '.env' && k !== 'SMTP_PASSWORD' && d[k] !== '' && d[k] != null));
+  atualizarLogin(); atualizarTeste(); resumoLimites();
+  BASE = JSON.stringify(lerTela()); sujo();
+}
+function atualizarTeste() { $('#bloco-teste').classList.toggle('oculto', !$('#EMAIL_TESTE_ATIVO').checked); }
+function atualizarLogin() {
+  const m = loginModo();
+  $('#caixa-usuario').classList.toggle('oculto', m !== 'outro');
+  $('#bloco-login').classList.toggle('oculto', m === 'sem');
+}
+function resumoLimites() {
+  const n = $('#por_minuto').value;
+  $('#resumo-limites').textContent = `${n ? `Até ${numero(n)} e-mails por minuto` : 'Sem limite de velocidade'} · ${numero($('#LISTA_MAX_EMAILS').value)} destinatários por disparo · anexos até ${$('#ANEXOS_MAX_MB').value} MB`;
+}
+function lerTela() {
+  const num = id => { const v = $('#' + id).value.trim(); return v === '' ? null : Number(v); };
+  const modo = loginModo(), from = $('#SMTP_FROM').value.trim();
+  return {
+    SMTP_FROM: from, SMTP_FROM_NOME: $('#SMTP_FROM_NOME').value.trim(),
+    SMTP_HOST: $('#SMTP_HOST').value.trim(), SMTP_PORT: num('SMTP_PORT'), SMTP_SEGURANCA: $('#SMTP_SEGURANCA').value,
+    SMTP_USER: modo === 'conta' ? from : (modo === 'outro' ? $('#SMTP_USER').value.trim() : ''),
+    SMTP_PASSWORD: modo === 'sem' ? '' : $('#SMTP_PASSWORD').value,
+    apagar_senha: false,
+    EMAIL_TESTE_ATIVO: $('#EMAIL_TESTE_ATIVO').checked ? 'sim' : 'nao', EMAIL_TESTE: $('#EMAIL_TESTE').value.trim(),
+    ENVIO_PAUSA_MS: minutoParaMs(num('por_minuto')),
+    LISTA_MAX_EMAILS: num('LISTA_MAX_EMAILS'), ANEXOS_MAX_MB: num('ANEXOS_MAX_MB'), IMAGEM_MAX_MB: num('IMAGEM_MAX_MB'),
+  };
+}
+// Barra de salvar: mostra quando ha alteracoes
+function sujo() {
+  const mudou = JSON.stringify(lerTela()) !== BASE || JSON.stringify(lerRadius()) !== BASE_RAD;
+  $('#btn-salvar').disabled = $('#btn-desfazer').disabled = !mudou;
+  $('#estado-salvar').textContent = mudou ? 'Alterações não salvas.' : 'Tudo salvo.';
+  $('#barra-salvar').classList.toggle('pendente', mudou);
+}
+document.querySelector('main').addEventListener('input', () => { resumoLimites(); sujo(); });
+document.querySelector('main').addEventListener('change', ev => {
+  if (ev.target.name === 'login') atualizarLogin();
+  if (ev.target.id === 'EMAIL_TESTE_ATIVO') { atualizarTeste(); if (ev.target.checked && !$('#EMAIL_TESTE').value) $('#EMAIL_TESTE').focus(); }
+  if (ev.target.id === 'RADIUS_SSH') $('#bloco-ssh').classList.toggle('oculto', !ev.target.checked);
+  if (ev.target.id === 'tipo') {
+    const t = TIPOS[ev.target.value];
+    Object.entries(t).forEach(([k, v]) => {
+      if (k === 'dica') return;
+      if (k === 'login') { document.querySelector(`input[name=login][value=${v}]`).checked = true; atualizarLogin(); return; }
+      $('#' + k).value = v;
+    });
+    if (ev.target.value === 'proprio' && ['smtp.office365.com', 'smtp.gmail.com', 'mailpit'].includes($('#SMTP_HOST').value)) $('#SMTP_HOST').value = '';
+    $('#dica').textContent = t.dica;
+  }
+  resumoLimites(); sujo();
+});
+$('#usar-login').onclick = () => {
+  const u = loginModo() === 'outro' ? $('#SMTP_USER').value.trim() : '';
+  if (!u.includes('@')) return toast('Escolha “Com outro usuário” e preencha o usuário de login primeiro.', 'info');
+  $('#EMAIL_TESTE').value = u; sujo();
+};
+$('#olho').onclick = () => { const c = $('#SMTP_PASSWORD'); c.type = c.type === 'password' ? 'text' : 'password'; };
+$('#btn-desfazer').onclick = () => { preencherRadius(RAD); preencher(ATUAL); };
+document.querySelectorAll('.olho[data-alvo]').forEach(b => b.onclick = () => { const c = $('#' + b.dataset.alvo); c.type = c.type === 'password' ? 'text' : 'password'; });
+
+// Wi-Fi Visitante: testar e conferir o formato da senha (com o que esta na tela, sem salvar)
+$('#btn-testar-radius').onclick = async ev => {
+  const b = ev.target; b.disabled = true; const texto = b.textContent; b.textContent = 'Testando…';
+  $('#resultado-radius').innerHTML = '';
+  try {
+    const r = await chamar('/api/configuracoes/radius/testar', { method: 'POST', body: JSON.stringify(lerRadius()) });
+    const senhas = r.atributos.filter(a => a.e_senha);
+    const ruins = senhas.filter(a => !a.sabe_gravar);
+    $('#resultado-radius').innerHTML = `<div class="resultado ${ruins.length ? 'atencao' : 'ok'}">
+      <b>Conectou.</b> ${numero(r.cadastros)} visitantes cadastrados (${numero(r.ativos)} ativos).
+      <ul>${senhas.map(a => `<li>Senhas no formato <code>${esc(a.atributo)}</code>: ${numero(a.linhas)} ${a.sabe_gravar ? '— a Gestão TI sabe gravar' : '— <b>formato não suportado</b>'}</li>`).join('') || '<li>Nenhuma linha de senha encontrada na tabela de senhas.</li>'}
+      ${r.sem_login ? `<li>${numero(r.sem_login)} cadastros não estão ligados a um login (idradcheck sem correspondência).</li>` : ''}</ul>
+      ${!$('#btn-salvar').disabled ? '<span>Lembre de salvar.</span>' : ''}</div>`;
+  } catch (e) { $('#resultado-radius').innerHTML = `<div class="resultado erro"><b>Não conectou.</b> ${esc(e.message)}</div>`; }
+  finally { b.disabled = false; b.textContent = texto; }
+};
+$('#btn-conferir').onclick = async () => {
+  const r = await Swal.fire({ title: 'Conferir formato da senha', width: 560, showCancelButton: true, confirmButtonText: 'Conferir', cancelButtonText: 'Voltar',
+    html: `<p style="text-align:left;margin:0 0 10px;color:var(--suave)">Informe o login de um visitante e a senha <b>atual</b> dele (por exemplo, um cadastro de teste seu).
+      O sistema calcula a senha no formato do banco e confere se bate com o que está gravado. A senha não é guardada.</p>
+      <div class="campo" style="text-align:left"><label for="sw-login">Login (CPF ou e-mail)</label><input class="entrada" id="sw-login" autocomplete="off"></div>
+      <div class="campo" style="text-align:left"><label for="sw-senha">Senha atual</label><input class="entrada" id="sw-senha" type="password" autocomplete="off"></div>`,
+    preConfirm: () => {
+      const login = $('#sw-login').value.trim(), senha = $('#sw-senha').value;
+      if (!login || !senha) return Swal.showValidationMessage('Informe o login e a senha.');
+      return { login, senha };
+    } });
+  if (!r.isConfirmed) return;
+  try {
+    const res = await chamar('/api/configuracoes/radius/conferir', { method: 'POST', body: JSON.stringify({ ...lerRadius(), ...r.value }) });
+    if (!res.encontrado) return Swal.fire({ icon: 'warning', title: 'Login não encontrado', text: 'Não há esse login na tabela de senhas.' });
+    const bate = res.resultados.find(x => x.bate);
+    if (bate) Swal.fire({ icon: 'success', title: 'Formato confirmado', text: `A senha bate (${bate.atributo}, ${bate.formato}). A troca de senha pela Gestão TI vai funcionar.` });
+    else if (!res.resultados.length) Swal.fire({ icon: 'error', title: 'Formato não suportado', text: 'Esse login não tem uma senha em formato que a Gestão TI saiba calcular.' });
+    else Swal.fire({ icon: 'error', title: 'Não bate', text: `O cálculo (${res.resultados.map(x => x.formato).join(', ')}) não bateu com o gravado. Confira se a senha informada é a atual. Se for, o portal usa outro cálculo de senha e a troca pela Gestão TI não vai funcionar até isso ser ajustado no sistema.` });
+  } catch (e) { Swal.fire({ icon: 'error', title: 'Não foi possível conferir', text: e.message }); }
+};
+window.addEventListener('beforeunload', ev => { if (!$('#btn-salvar').disabled) { ev.preventDefault(); ev.returnValue = ''; } });
+
+async function apagarSenha() {
+  const r = await Swal.fire({ icon: 'warning', title: 'Apagar a senha guardada?', text: 'Os disparos param de sair até uma nova senha ser salva.',
+    showCancelButton: true, confirmButtonText: 'Apagar', cancelButtonText: 'Voltar', customClass: { confirmButton: 'perigo' } });
+  if (!r.isConfirmed) return;
+  try { ATUAL = await chamar('/api/configuracoes/email', { method: 'PUT', body: JSON.stringify({ apagar_senha: true }) }); preencher(ATUAL); toast('Senha apagada.'); }
+  catch (e) { erro(e); }
+}
+$('#btn-testar').onclick = async ev => {
+  const b = ev.target; b.disabled = true; const texto = b.textContent; b.textContent = 'Testando…';
+  try { await chamar('/api/configuracoes/email/testar', { method: 'POST', body: JSON.stringify(lerTela()) });
+    Swal.fire({ icon: 'success', title: 'Conexão funcionando', text: 'O servidor aceitou a conexão' + (loginModo() !== 'sem' ? ' e o login.' : '.') + (!$('#btn-salvar').disabled ? ' Lembre de salvar.' : '') }); }
+  catch (e) { Swal.fire({ icon: 'error', title: 'Não conectou', text: e.message }); }
+  finally { b.disabled = false; b.textContent = texto; }
+};
+$('#btn-enviar-teste').onclick = async () => {
+  const r = await Swal.fire({ title: 'Enviar e-mail de teste', input: 'email', inputValue: EU.email || '', inputLabel: 'Para qual e-mail?',
+    showCancelButton: true, confirmButtonText: 'Enviar', cancelButtonText: 'Voltar' });
+  if (!r.isConfirmed) return;
+  try {
+    Swal.fire({ title: 'Enviando…', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    await chamar('/api/configuracoes/email/enviar-teste', { method: 'POST', body: JSON.stringify({ ...lerTela(), para: r.value }) });
+    Swal.fire({ icon: 'success', title: 'Teste enviado', text: `Confira a caixa de entrada (e o spam) de ${r.value}.` });
+  } catch (e) { Swal.fire({ icon: 'error', title: 'Não foi possível enviar', text: e.message }); }
+};
+$('#btn-salvar').onclick = async () => {
+  try {
+    if (JSON.stringify(lerRadius()) !== BASE_RAD) { RAD = await chamar('/api/configuracoes/radius', { method: 'PUT', body: JSON.stringify(lerRadius()) }); preencherRadius(RAD); }
+    if (JSON.stringify(lerTela()) !== BASE) { ATUAL = await chamar('/api/configuracoes/email', { method: 'PUT', body: JSON.stringify(lerTela()) }); }
+    preencher(ATUAL); toast('Configurações salvas.');
+  } catch (e) { erro(e); }
+};
+
+carregarMarca().then(abrir);
+</script>
+</body>
+</html>

@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Logs · Gestão TI</title>
+<link rel="stylesheet" href="/static/estilo.css">
+<script src="/static/sweetalert2.all.min.js"></script>
+<script src="/static/comum.js"></script>
+</head>
+<body>
+<section id="tela-app" class="oculto">
+  <header id="topo"></header>
+  <main class="conteudo">
+    <div class="numeros numeros-5" id="resumo"></div>
+    <div class="filtros filtros-logs" id="filtros">
+      <input class="entrada" id="f-busca" placeholder="Buscar no detalhe, login, IP ou computador" autocomplete="off">
+      <select class="entrada" id="f-categoria"><option value="">Todos os módulos</option></select>
+      <select class="entrada" id="f-acao"><option value="">Todas as ações</option></select>
+      <select class="entrada" id="f-autor"><option value="">Todas as pessoas</option></select>
+      <input class="entrada" type="date" id="f-desde" title="De">
+      <input class="entrada" type="date" id="f-ate" title="Até">
+    </div>
+    <div class="barra-logs">
+      <span id="total" class="q"></span>
+      <span class="espaco"></span>
+      <button class="btn" id="btn-limpar">Limpar filtros</button>
+      <button class="btn" id="btn-csv">Exportar CSV</button>
+    </div>
+    <div id="conteudo"></div>
+    <div class="paginacao" id="paginacao"></div>
+  </main>
+</section>
+
+<script>
+let OPCOES = null, PAGINA = 1;
+const chamar = (c, o) => api(c, o, irParaInicio);
+const F = { busca: '#f-busca', categoria: '#f-categoria', acao: '#f-acao', autor: '#f-autor', desde: '#f-desde', ate: '#f-ate' };
+const filtros = () => Object.fromEntries(Object.entries(F).map(([k, sel]) => [k, $(sel).value.trim()]).filter(([, v]) => v));
+
+async function abrir() {
+  if (!await exigirSessao('logs')) return;
+  montarTopo('Logs', 'registro');
+  $('#tela-app').classList.remove('oculto');
+  try {
+    OPCOES = await chamar('/api/logs/opcoes');
+    $('#f-categoria').innerHTML += OPCOES.categorias.map(c => `<option value="${c.id}">${esc(c.nome)}</option>`).join('');
+    $('#f-autor').innerHTML += OPCOES.autores.map(a => `<option value="${esc(a.login)}">${esc(a.nome ? `${a.nome} (${a.login})` : a.login)}</option>`).join('');
+    preencherAcoes();
+  } catch (e) { erro(e); }
+  carregarResumo(); carregar();
+}
+function preencherAcoes() {
+  const cat = $('#f-categoria').value, atual = $('#f-acao').value;
+  const lista = OPCOES.acoes.filter(a => !cat || a.categoria === cat);
+  $('#f-acao').innerHTML = '<option value="">Todas as ações</option>' + lista.map(a => `<option value="${a.id}" ${a.id === atual ? 'selected' : ''}>${esc(a.nome)}</option>`).join('');
+}
+
+async function carregarResumo() {
+  try {
+    const r = await chamar('/api/logs/resumo');
+    const card = (n, txt, cor = '', filtro = null) => `<div class="numero ${cor}" ${filtro ? `data-filtro='${JSON.stringify(filtro)}' role="button" tabindex="0" title="Ver estes registros"` : ''}><b>${numero(n)}</b><span>${txt}</span></div>`;
+    const hoje = new Date().toLocaleDateString('sv-SE'), semana = new Date(Date.now() - 6 * 864e5).toLocaleDateString('sv-SE');
+    $('#resumo').innerHTML = card(r.acoes_hoje, 'ações registradas hoje', '', { desde: hoje })
+      + card(r.pessoas_hoje, 'pessoas entraram hoje', 'verde', { acao: 'login', desde: hoje })
+      + card(r.falhas_login_7d, 'falhas de login (7 dias)', 'laranja', { categoria: 'acesso', acao: 'login_falhou', desde: semana })
+      + card(r.acessos_negados_7d, 'acessos negados (7 dias)', 'laranja', { categoria: 'acesso', acao: 'acesso_negado', desde: semana })
+      + card(r.alteracoes_ad_7d, 'alterações em contas do AD (7 dias)', '', { categoria: 'contas_ad', desde: semana });
+  } catch {}
+}
+$('#resumo').addEventListener('click', ev => {
+  const c = ev.target.closest('[data-filtro]'); if (!c) return;
+  const f = JSON.parse(c.dataset.filtro);
+  Object.values(F).forEach(sel => { $(sel).value = ''; });
+  if (f.categoria) { $('#f-categoria').value = f.categoria; }
+  preencherAcoes();
+  Object.entries(f).forEach(([k, v]) => { $(F[k]).value = v; });
+  PAGINA = 1; carregar();
+});
+
+async function carregar() {
+  const p = new URLSearchParams({ ...filtros(), pagina: PAGINA, por_pagina: 50 });
+  try {
+    const r = await chamar('/api/logs?' + p);
+    $('#total').textContent = `${numero(r.total)} registro${r.total === 1 ? '' : 's'}`;
+    if (!r.itens.length) { $('#conteudo').innerHTML = '<div class="vazio">Nenhum registro com esses filtros.</div>'; $('#paginacao').innerHTML = ''; return; }
+    $('#conteudo').innerHTML = `<div class="item">${r.itens.map(e => `<div class="evento log">
+      <span class="q">${dataHora(e.criado_em)}</span>
+      <span><span class="tag mod-${e.categoria}">${esc(e.categoria_nome)}</span> <b>${esc(e.acao_nome)}</b>
+        · ${e.autor_nome ? `${esc(e.autor_nome)} <span class="q">(${esc(e.autor)})</span>` : esc(e.autor || '?')}
+        ${e.ip ? ` · <span class="q">IP ${esc(e.ip)}</span>` : ''}${e.hostname ? ` · <span class="q">${esc(e.hostname)}</span>` : ''}${e.solicitacao_id ? ` · <span class="q">pedido nº ${e.solicitacao_id}</span>` : ''}
+        ${e.detalhe ? `<br><span class="q">${esc(e.detalhe)}</span>` : ''}</span></div>`).join('')}</div>`;
+    $('#paginacao').innerHTML = r.paginas > 1 ? `<button class="btn peq" id="pg-ant" ${r.pagina <= 1 ? 'disabled' : ''}>Anterior</button>
+      <span>Página ${r.pagina} de ${r.paginas}</span><button class="btn peq" id="pg-prox" ${r.pagina >= r.paginas ? 'disabled' : ''}>Próxima</button>` : '';
+    $('#pg-ant')?.addEventListener('click', () => { PAGINA--; carregar(); scrollTo(0, 0); });
+    $('#pg-prox')?.addEventListener('click', () => { PAGINA++; carregar(); scrollTo(0, 0); });
+  } catch (e) { erro(e); }
+}
+
+$('#f-busca').addEventListener('input', () => { clearTimeout(carregar._t); carregar._t = setTimeout(() => { PAGINA = 1; carregar(); }, 350); });
+$('#f-categoria').addEventListener('change', () => { preencherAcoes(); PAGINA = 1; carregar(); });
+['#f-acao', '#f-autor', '#f-desde', '#f-ate'].forEach(sel => $(sel).addEventListener('change', () => { PAGINA = 1; carregar(); }));
+$('#btn-limpar').onclick = () => { Object.values(F).forEach(sel => { $(sel).value = ''; }); preencherAcoes(); PAGINA = 1; carregar(); };
+$('#btn-csv').onclick = () => { location.href = '/api/logs/exportar.csv?' + new URLSearchParams(filtros()); toast('Exportando… (fica registrado nos logs)'); };
+
+carregarMarca().then(abrir);
+</script>
+</body>
+</html>

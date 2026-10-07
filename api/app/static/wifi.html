@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wi-Fi no computador · Gestão TI</title>
+<link rel="stylesheet" href="/static/estilo.css">
+<script src="/static/sweetalert2.all.min.js"></script>
+<script src="/static/comum.js"></script>
+</head>
+<body>
+
+<section id="tela-app" class="oculto">
+  <header id="topo"></header>
+
+  <main class="conteudo">
+    <div class="numeros">
+      <div class="numero laranja"><b id="n-pendentes">0</b><span>aguardando decisão</span></div>
+      <div class="numero verde"><b id="n-ativas">0</b><span>computadores liberados</span></div>
+      <div class="numero"><b id="n-pcs">0</b><span>computadores vistos hoje</span></div>
+    </div>
+
+    <div class="barra">
+      <nav class="abas" id="abas">
+        <button class="aba ativa" data-aba="pendente">Pendentes<span class="n oculto" id="badge"></span></button>
+        <button class="aba" data-aba="ativas">Liberados</button>
+        <button class="aba" data-aba="computadores">Computadores</button>
+        <button class="aba" data-aba="pessoas">Pessoas</button>
+        <button class="aba" data-aba="historico">Histórico</button>
+        <button class="aba" data-aba="registro">Registro de atividades</button>
+      </nav>
+      <button class="btn primario" id="btn-liberar">Liberar computador</button>
+    </div>
+
+    <div id="filtros"></div>
+    <div id="conteudo" class="lista"></div>
+  </main>
+</section>
+
+<script>
+let aba = 'pendente', timer = null, ultimoPendentes = null;
+const NOMES_ACAO = { solicitada: 'Solicitou', cancelada: 'Cancelou', aprovada: 'Liberou', negada: 'Negou', bloqueada: 'Bloqueou',
+  revogada: 'Bloqueou', expirada: 'Bloqueio automático (prazo)', prazo_alterado: 'Alterou o prazo', estendida: 'Estendeu o prazo',
+  liberacao_direta: 'Liberação direta', aplicada: 'Computador aplicou a liberação', bloqueio_aplicado: 'Computador voltou a bloquear',
+  sessao_iniciada: 'Usuário logado no computador', sessao_encerrada: 'Usuário saiu do computador',
+  login: 'Entrou no painel', login_falhou: 'Falha ao entrar no painel', portal_login: 'Entrou no portal', portal_login_falhou: 'Falha ao entrar no portal',
+  admin_criado: 'Criou usuário local', admin_senha: 'Trocou senha', admin_ativado: 'Ativou acesso ao painel', admin_desativado: 'Desativou acesso ao painel',
+  admin_ad_primeiro_acesso: 'Primeiro acesso ao painel (AD)', exportou_log: 'Exportou o registro' };
+
+const chamar = (c, o) => api(c, o, irParaInicio);
+
+async function abrir() {
+  if (!await exigirSessao('wifi')) return;
+  montarTopo('Wi-Fi no computador', 'wifi', { url: '/m/rede-sem-fio', texto: 'Rede Sem Fio', icone: 'wifi' });
+  $('#tela-app').classList.remove('oculto');
+  trocarAba(aba);
+  contarComputadores();
+  clearInterval(timer);
+  timer = setInterval(() => { if (!document.hidden && !Swal.isVisible() && ['pendente', 'ativas'].includes(aba)) carregar(true); }, 20000);
+}
+
+$('#abas').addEventListener('click', ev => { const b = ev.target.closest('.aba'); if (b) trocarAba(b.dataset.aba); });
+function trocarAba(nova) {
+  aba = nova;
+  document.querySelectorAll('.aba').forEach(x => x.classList.toggle('ativa', x.dataset.aba === aba));
+  const f = $('#filtros');
+  const acoes = Object.entries(NOMES_ACAO).filter(([k]) => k !== 'revogada').map(([k, v]) => `<option value="${k}">${v}</option>`).join('');
+  f.innerHTML = {
+    historico: `<div class="filtros"><input class="entrada" id="f-busca" placeholder="Buscar por computador, nome ou login do usuário, quem liberou ou motivo"></div>`,
+    computadores: `<div class="filtros"><input class="entrada" id="f-busca" placeholder="Buscar por computador, IP ou usuário logado (login ou nome)"></div>`,
+    pessoas: `<div class="filtros"><input class="entrada" id="f-busca" placeholder="Digite o nome ou o login do usuário do AD (mínimo 2 letras)"></div>`,
+    registro: `<div class="filtros"><input class="entrada" id="f-busca" placeholder="Quem, computador, IP ou texto">
+      <select class="entrada" id="f-acao"><option value="">Todas as ações</option><option value="aprovada,liberacao_direta">Liberações</option><option value="bloqueada,revogada,expirada">Bloqueios</option>${acoes}</select>
+      <input class="entrada" type="date" id="f-desde" title="Desde"><input class="entrada" type="date" id="f-ate" title="Até">
+      <button class="btn" id="f-csv">Exportar CSV</button></div>`,
+  }[aba] || '';
+  f.querySelectorAll('input,select').forEach(el => el.addEventListener(el.tagName === 'SELECT' || el.type === 'date' ? 'change' : 'input', () => { clearTimeout(f._t); f._t = setTimeout(carregar, 300); }));
+  const csv = $('#f-csv');
+  if (csv) csv.onclick = () => { location.href = '/api/admin/eventos.csv?' + filtrosRegistro(); };
+  carregar();
+}
+const valor = id => ($(id)?.value || '').trim();
+function filtrosRegistro() {
+  const p = new URLSearchParams();
+  [['busca', '#f-busca'], ['acao', '#f-acao'], ['desde', '#f-desde'], ['ate', '#f-ate']].forEach(([k, id]) => { if (valor(id)) p.set(k, valor(id)); });
+  return p.toString();
+}
+
+async function carregar(silencioso = false) {
+  try {
+    if (aba === 'registro') return renderEventos(await chamar('/api/admin/eventos?limite=300&' + filtrosRegistro()));
+    if (aba === 'computadores') return renderComputadores(await chamar('/api/admin/computadores?busca=' + encodeURIComponent(valor('#f-busca'))));
+    if (aba === 'pessoas') {
+      const q = valor('#f-busca');
+      if (q.length < 2) { $('#conteudo').innerHTML = '<div class="vazio">Digite pelo menos 2 letras do nome ou login.</div>'; return; }
+      return renderPessoas(await chamar('/api/admin/pessoas?q=' + encodeURIComponent(q)));
+    }
+    const p = new URLSearchParams();
+    if (aba === 'pendente') p.set('status', 'pendente');
+    if (aba === 'ativas') p.set('status', 'ativas');
+    if (aba === 'historico' && valor('#f-busca')) p.set('busca', valor('#f-busca'));
+    const dados = await chamar('/api/admin/solicitacoes?' + p);
+    atualizarContagem(dados.contagem);
+    $('#conteudo').innerHTML = renderSolicitacoes(dados.itens, { pendente: 'Nenhuma solicitação aguardando decisão.', ativas: 'Nenhum computador liberado no momento.', historico: 'Nenhuma solicitação encontrada.' }[aba]);
+  } catch (e) { if (!silencioso) erro(e); }
+}
+function atualizarContagem(c) {
+  $('#n-pendentes').textContent = c.pendentes;
+  $('#n-ativas').textContent = c.ativas;
+  $('#badge').textContent = c.pendentes;
+  $('#badge').classList.toggle('oculto', !c.pendentes);
+  document.title = (c.pendentes ? `(${c.pendentes}) ` : '') + 'Wi-Fi no computador · Gestão TI';
+  if (ultimoPendentes !== null && c.pendentes > ultimoPendentes) toast('Nova solicitação recebida', 'info');
+  ultimoPendentes = c.pendentes;
+}
+async function contarComputadores() {
+  try {
+    const lista = await chamar('/api/admin/computadores?limite=2000');
+    const hoje = new Date().toLocaleDateString('pt-BR', { timeZone: TZ });
+    $('#n-pcs').textContent = lista.filter(c => new Date(c.visto_em).toLocaleDateString('pt-BR', { timeZone: TZ }) === hoje).length;
+  } catch {}
+}
+
+function cartaoSolicitacao(s) {
+  let acoes = '';
+  if (s.status === 'pendente') acoes = `<button class="btn contorno-perigo" data-acao="negar" data-id="${s.id}">Negar</button><button class="btn primario" data-acao="aprovar" data-id="${s.id}" data-horas="${s.horas_solicitadas ?? 'indeterminado'}">Liberar</button>`;
+  if (s.status === 'aprovada') acoes = `<button class="btn" data-acao="prazo" data-id="${s.id}">Alterar prazo</button><button class="btn perigo" data-acao="bloquear" data-id="${s.id}">Bloquear</button>`;
+  const linhas = [];
+  linhas.push(`Pediu: ${nomeHoras(s.horas_solicitadas)}`);
+  if (s.status === 'aprovada') linhas.push(`${prazoTexto(s)} · liberado por ${esc(s.decidido_por)} em ${dataHora(s.decidido_em)}` + (s.ultima_consulta_agente ? ' · aplicado no computador' : ' · aguardando o computador aplicar'));
+  else if (s.status === 'revogada') linhas.push(`Bloqueado por ${esc(s.bloqueado_por)} em ${dataHora(s.bloqueado_em)}` + (s.bloqueio_aplicado_em ? ' · bloqueio aplicado' : ''));
+  else if (s.status === 'expirada') linhas.push(`Bloqueio automático em ${dataHora(s.bloqueado_em || s.valido_ate)}` + (s.decidido_por ? ` · tinha sido liberado por ${esc(s.decidido_por)}` : ''));
+  else if (s.decidido_por) linhas.push(`${NOMES_STATUS[s.status]} por ${esc(s.decidido_por)} em ${dataHora(s.decidido_em)}`);
+  return `<article class="item clicavel" data-detalhe="${s.id}">
+    <div class="topo-item"><span class="host">${esc(s.hostname)}</span><span class="tag ${s.status}">${NOMES_STATUS[s.status] || esc(s.status)}</span>
+      ${s.origem === 'ti' ? '<span class="tag indigo">pela TI</span>' : ''}${s.hostname_fonte === 'informado' ? '<span class="tag" title="O usuário digitou o nome do computador">nome digitado</span>' : ''}</div>
+    <div class="meta"><span><b>${esc(s.usuario)}</b>${s.usuario_login ? ` (${esc(s.usuario_login)})` : ''}</span><span>${dataHora(s.criado_em)}</span><span>nº ${s.id}</span>${s.ip_origem ? `<span>IP ${esc(s.ip_origem)}</span>` : ''}${s.usuario_no_computador ? `<span>Logado no computador: ${esc(s.usuario_no_computador)}</span>` : ''}${s.usuario_na_liberacao ? `<span>Em uso na liberação: <b>${esc(s.usuario_na_liberacao_nome || s.usuario_na_liberacao)}</b>${s.usuario_na_liberacao_nome ? ` (${esc(s.usuario_na_liberacao)})` : ''}</span>` : ''}</div>
+    ${s.usuario_no_computador && s.usuario_login && s.usuario_no_computador !== s.usuario_login ? `<div class="meta"><span class="tag" title="Quem pediu não é quem estava logado no computador">pedido por outra pessoa</span></div>` : ''}
+    <div class="texto">${esc(s.motivo)}</div>
+    <div class="meta">${linhas.map(l => `<span>${l}</span>`).join('')}</div>
+    ${s.observacao_ti ? `<div class="meta"><span>Obs. da TI: ${esc(s.observacao_ti)}</span></div>` : ''}
+    ${acoes ? `<div class="acoes">${acoes}</div>` : ''}
+  </article>`;
+}
+function renderSolicitacoes(itens, vazio) {
+  return itens.length ? itens.map(cartaoSolicitacao).join('') : `<div class="vazio">${vazio}</div>`;
+}
+
+document.addEventListener('click', ev => {
+  const b = ev.target.closest('button[data-acao]');
+  if (b) { ev.stopPropagation(); return acao(b.dataset.acao, Number(b.dataset.id), b.dataset); }
+  const card = ev.target.closest('[data-detalhe]');
+  if (card && !Swal.isVisible()) mostrarDetalhe(Number(card.dataset.detalhe));
+  const pc = ev.target.closest('[data-pc-liberar]');
+  if (pc) liberarDireto(pc.dataset.pcLiberar);
+  const pessoa = ev.target.closest('[data-pessoa]');
+  if (pessoa) mostrarPessoa(pessoa.dataset.pessoa, pessoa.dataset.nome);
+});
+
+function camposPrazo(selecionada) {
+  return `<div class="campo"><label for="sw-prazo">Liberar por</label><select class="entrada" id="sw-prazo">${opcoesPrazo(CONFIG.horas_admin, selecionada, true)}</select></div>
+          ${campoPersonalizado('sw-prazo', CONFIG.horas_maximas)}`;
+}
+function ligarPrazo() { ligarPersonalizado('sw-prazo'); }
+function validarPrazo() {
+  const p = lerPrazo('sw-prazo', CONFIG.horas_maximas);
+  if (p.erro) { Swal.showValidationMessage(p.erro); return false; }
+  return p;
+}
+const textoPrazo = p => p.indeterminado ? 'por tempo indeterminado' : `por ${nomeHoras(p.horas)}`;
+
+async function acao(tipo, id, ds) {
+  try {
+    if (tipo === 'aprovar') {
+      const r = await Swal.fire({ title: `Liberar a solicitação nº ${id}?`, icon: 'question', showCancelButton: true, confirmButtonText: 'Liberar', cancelButtonText: 'Voltar',
+        html: camposPrazo(ds.horas) + `<div class="campo"><label for="sw-obs">Observação (opcional, o usuário vê)</label><textarea class="entrada" id="sw-obs"></textarea></div>`,
+        didOpen: ligarPrazo, preConfirm: () => { const p = validarPrazo(); return p && { ...p, observacao: $('#sw-obs').value }; } });
+      if (!r.isConfirmed) return;
+      await chamar(`/api/admin/solicitacoes/${id}/aprovar`, { method: 'POST', body: JSON.stringify(r.value) });
+      toast(`Liberado ${textoPrazo(r.value)}. O computador aplica em até 5 minutos.`);
+    }
+    if (tipo === 'negar') {
+      const r = await Swal.fire({ title: `Negar a solicitação nº ${id}?`, icon: 'warning', input: 'textarea', inputLabel: 'Motivo (o usuário verá esta mensagem)',
+        showCancelButton: true, confirmButtonText: 'Negar', cancelButtonText: 'Voltar', customClass: { confirmButton: 'perigo' },
+        inputValidator: v => (!v || v.trim().length < 3) ? 'Informe o motivo.' : undefined });
+      if (!r.isConfirmed) return;
+      await chamar(`/api/admin/solicitacoes/${id}/negar`, { method: 'POST', body: JSON.stringify({ observacao: r.value }) });
+      toast('Solicitação negada.');
+    }
+    if (tipo === 'bloquear') {
+      const r = await Swal.fire({ title: `Bloquear novamente? (nº ${id})`, text: 'O computador volta a ver só a rede da prefeitura em até 5 minutos.', icon: 'warning',
+        input: 'text', inputPlaceholder: 'Motivo (opcional)', showCancelButton: true, confirmButtonText: 'Bloquear', cancelButtonText: 'Voltar', customClass: { confirmButton: 'perigo' } });
+      if (!r.isConfirmed) return;
+      await chamar(`/api/admin/solicitacoes/${id}/bloquear`, { method: 'POST', body: JSON.stringify({ observacao: r.value }) });
+      toast('Bloqueado.');
+    }
+    if (tipo === 'prazo') {
+      const r = await Swal.fire({ title: `Novo prazo (nº ${id})`, text: 'O novo prazo conta a partir de agora.', icon: 'question', showCancelButton: true, confirmButtonText: 'Alterar', cancelButtonText: 'Voltar',
+        html: camposPrazo(CONFIG.horas_admin[0]), didOpen: ligarPrazo, preConfirm: validarPrazo });
+      if (!r.isConfirmed) return;
+      await chamar(`/api/admin/solicitacoes/${id}/alterar-prazo`, { method: 'POST', body: JSON.stringify(r.value) });
+      toast('Prazo alterado.');
+    }
+    carregar();
+  } catch (e) { erro(e); }
+}
+
+function emUsoNaLiberacao(s) {
+  // login = quem estava logado; '' = ninguem; null = computador sem contato recente (ou liberado antes desta versao)
+  if (s.usuario_na_liberacao) return `<b>${esc(s.usuario_na_liberacao_nome || s.usuario_na_liberacao)}</b>${s.usuario_na_liberacao_nome ? ` (${esc(s.usuario_na_liberacao)})` : ''}`;
+  if (s.usuario_na_liberacao === '') return '<b>ninguém logado</b>';
+  return '<span class="q">não informado (computador sem contato recente)</span>';
+}
+
+async function mostrarDetalhe(id) {
+  try {
+    const s = await chamar(`/api/admin/solicitacoes/${id}`);
+    const linhas = s.eventos.map(e => `<div class="evento"><span class="q">${dataHora(e.criado_em)}</span><span><b>${esc(NOMES_ACAO[e.acao] || e.acao)}</b> · ${esc(e.autor)}${e.ip ? ` · IP ${esc(e.ip)}` : ''}${e.detalhe ? `<br><span class="q">${esc(e.detalhe)}</span>` : ''}</span></div>`).join('');
+    Swal.fire({ title: `${esc(s.hostname)} · nº ${s.id}`, width: 680, confirmButtonText: 'Fechar',
+      html: `<div style="text-align:left"><p><span class="tag ${s.status}">${NOMES_STATUS[s.status]}</span> &nbsp;<b>${esc(s.usuario)}</b>${s.usuario_login ? ` (${esc(s.usuario_login)})` : ''}</p>
+        ${s.usuario_no_computador ? `<p>Logado no computador ao pedir: <b>${esc(s.usuario_no_computador)}</b></p>` : ''}
+        ${s.decidido_em && s.status !== 'negada' ? `<p>Em uso no computador na liberação: ${emUsoNaLiberacao(s)}</p>` : ''}
+        <p style="white-space:pre-wrap">${esc(s.motivo)}</p><h4 style="margin:16px 0 4px">Linha do tempo</h4>${linhas || '<p>Sem eventos.</p>'}</div>` });
+  } catch (e) { erro(e); }
+}
+
+function renderComputadores(lista) {
+  contarComputadores();
+  const el = $('#conteudo');
+  if (!lista.length) { el.innerHTML = '<div class="vazio">Nenhum computador encontrado. Os computadores aparecem aqui quando o script da GPO consulta o servidor (a cada 5 minutos).</div>'; return; }
+  el.innerHTML = lista.map(c => `<article class="item">
+    <div class="topo-item"><span class="host">${esc(c.hostname)}</span>${c.liberacao ? `<span class="tag aprovada">Liberado</span>` : '<span class="tag">Bloqueio normal</span>'}</div>
+    <div class="usuario-pc">${c.usuario_logado
+      ? `<b>${esc(c.usuario_nome || c.usuario_logado)}</b>${c.usuario_nome ? ` <span class="tag indigo">${esc(c.usuario_logado)}</span>` : ''}${c.usuario_desde ? ` <span class="q">desde ${dataHora(c.usuario_desde)}</span>` : ''}`
+      : '<span class="q">Nenhum usuário logado</span>'}</div>
+    <div class="meta"><span>IP ${esc(c.ip || '—')}</span><span>Visto em ${dataHora(c.visto_em)}</span>${c.liberacao ? `<span>${prazoTexto(c.liberacao)} · por ${esc(c.liberacao.decidido_por)}</span>` : ''}</div>
+    <div class="acoes">${c.liberacao ? `<button class="btn" data-acao="prazo" data-id="${c.liberacao.id}">Alterar prazo</button><button class="btn perigo" data-acao="bloquear" data-id="${c.liberacao.id}">Bloquear</button>`
+      : `<button class="btn primario" data-pc-liberar="${esc(c.hostname)}">Liberar</button>`}</div>
+  </article>`).join('');
+}
+
+function renderPessoas(lista) {
+  const el = $('#conteudo');
+  const aviso = CONFIG.busca_ad ? '' : '<p class="ajuda" style="margin:0 0 10px;color:var(--suave)">Mostrando pessoas que já usaram o sistema. Para buscar em todo o AD, configure a conta de serviço (AD_BIND_USUARIO) no servidor.</p>';
+  if (!lista.length) { el.innerHTML = aviso + '<div class="vazio">Ninguém encontrado com esse nome ou login.</div>'; return; }
+  el.innerHTML = aviso + lista.map(p => `<article class="item clicavel" data-pessoa="${esc(p.login)}" data-nome="${esc(p.nome)}">
+    <div class="topo-item"><b>${esc(p.nome)}</b><span class="tag indigo">${esc(p.login)}</span></div>
+    <div class="meta"><span>${p.solicitacoes} solicitaç${p.solicitacoes === 1 ? 'ão' : 'ões'}</span>${p.logado_em ? `<span><b>Logado agora em ${esc(p.logado_em)}</b></span>` : ''}${p.ultimo_computador ? `<span>Último computador: ${esc(p.ultimo_computador)}</span>` : ''}${p.ultima_solicitacao ? `<span>Última em ${dataHora(p.ultima_solicitacao)}</span>` : ''}${p.email ? `<span>${esc(p.email)}</span>` : ''}</div>
+  </article>`).join('');
+}
+async function mostrarPessoa(login, nome) {
+  try {
+    const dados = await chamar('/api/admin/solicitacoes?usuario_login=' + encodeURIComponent(login));
+    Swal.fire({ title: esc(nome), width: 760, confirmButtonText: 'Fechar', showDenyButton: true, denyButtonText: 'Liberar um computador para esta pessoa', denyButtonColor: '#2722a3',
+      html: `<div style="text-align:left" class="lista">${renderSolicitacoes(dados.itens, 'Esta pessoa ainda não fez solicitações.')}</div>` })
+      .then(r => { if (r.isDenied) liberarDireto(dados.itens[0]?.hostname || '', login, nome); });
+  } catch (e) { erro(e); }
+}
+
+function renderEventos(lista) {
+  const el = $('#conteudo');
+  if (!lista.length) { el.innerHTML = '<div class="vazio">Nenhum registro com esses filtros.</div>'; return; }
+  el.innerHTML = `<div class="item">${lista.map(e => `<div class="evento"><span class="q">${dataHora(e.criado_em)}</span><span><b>${esc(NOMES_ACAO[e.acao] || e.acao)}</b> · ${esc(e.autor)}${e.hostname ? ` · ${esc(e.hostname)}` : ''}${e.solicitacao_id ? ` · nº ${e.solicitacao_id}` : ''}${e.ip ? ` · IP ${esc(e.ip)}` : ''}${e.detalhe ? `<br><span class="q">${esc(e.detalhe)}</span>` : ''}</span></div>`).join('')}</div>`;
+}
+
+$('#btn-liberar').addEventListener('click', () => liberarDireto(''));
+async function liberarDireto(hostname, login = '', nome = '') {
+  const r = await Swal.fire({ title: 'Liberar um computador', text: nome ? `Para ${nome}` : 'Use quando o pedido chegou por telefone ou chamado.',
+    showCancelButton: true, confirmButtonText: 'Liberar', cancelButtonText: 'Voltar', width: 560,
+    html: `<div class="campo"><label for="sw-h">Nome do computador</label><input class="entrada" id="sw-h" value="${esc(hostname)}" placeholder="ex.: ST-FKQ04N3" style="text-transform:uppercase" list="lista-pcs"><datalist id="lista-pcs"></datalist></div>
+           ${camposPrazo(CONFIG.horas_admin[0])}
+           <div class="campo"><label for="sw-obs">Motivo / número do chamado</label><textarea class="entrada" id="sw-obs"></textarea></div>`,
+    didOpen: async () => {
+      ligarPrazo();
+      try { const pcs = await chamar('/api/admin/computadores?limite=2000'); $('#lista-pcs').innerHTML = pcs.map(p => `<option value="${esc(p.hostname)}">`).join(''); } catch {}
+    },
+    preConfirm: () => {
+      const h = $('#sw-h').value.trim(), obs = $('#sw-obs').value.trim();
+      if (!h) return Swal.showValidationMessage('Informe o nome do computador.');
+      if (obs.length < 3) return Swal.showValidationMessage('Informe o motivo.');
+      const p = validarPrazo(); if (!p) return false;
+      return { hostname: h, observacao: obs, ...p, usuario_login: login || null, usuario_nome: nome || null };
+    } });
+  if (!r.isConfirmed) return;
+  try { await chamar('/api/admin/liberacoes', { method: 'POST', body: JSON.stringify(r.value) }); toast(`Liberado ${textoPrazo(r.value)}.`); carregar(); } catch (e) { erro(e); }
+}
+
+carregarMarca().then(abrir);
+</script>
+</body>
+</html>

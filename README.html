@@ -1,0 +1,1814 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gestão TI · Documentação</title>
+<meta name="author" content="Bernardo Mozelli de Medeiros">
+<link rel="icon" href="data:image/svg+xml,&lt;svg xmlns=&quot;http://www.w3.org/2000/svg&quot; viewBox=&quot;0 0 64 64&quot;&gt;&lt;rect width=&quot;64&quot; height=&quot;64&quot; rx=&quot;14&quot; fill=&quot;%232b1f9e&quot;/&gt;&lt;rect x=&quot;12&quot; y=&quot;14&quot; width=&quot;40&quot; height=&quot;28&quot; rx=&quot;4&quot; fill=&quot;none&quot; stroke=&quot;%23fff&quot; stroke-width=&quot;4&quot;/&gt;&lt;path d=&quot;M26 50h12M32 42v8&quot; stroke=&quot;%23fff&quot; stroke-width=&quot;4&quot; stroke-linecap=&quot;round&quot;/&gt;&lt;circle cx=&quot;32&quot; cy=&quot;28&quot; r=&quot;6&quot; fill=&quot;%23ff7a00&quot;/&gt;&lt;/svg&gt;">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --indigo: #2722a3; --indigo-2: #1f1a8c; --indigo-3: #16126b; --indigo-claro: #eceefb;
+  --laranja: #ff6b00; --laranja-2: #ff8f1f;
+  --tinta: #14152b; --suave: #6b7090; --rotulo: #8a90ab; --linha: #e3e5f1; --fundo: #f3f4fa; --cartao: #fff;
+  --ok: #138a4b; --ok-bg: #e4f6ec; --aviso: #9a5b00; --aviso-bg: #fff1dc; --cinza-bg: #eef0f6; --raio: 14px;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 76px; }
+body { margin: 0; font: 15px/1.6 "Outfit", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: var(--tinta); background: var(--fundo); }
+a { color: var(--indigo); }
+
+/* cabecalho no padrao das telas */
+.topo { position: sticky; top: 0; z-index: 10; background: linear-gradient(90deg, var(--indigo-3), var(--indigo)); border-bottom: 2px solid var(--laranja); color: #fff; }
+.faixa { max-width: 1240px; margin: 0 auto; padding: 10px 20px; display: flex; align-items: center; gap: 12px; }
+.faixa svg { width: 32px; height: 32px; flex: none; }
+.trilha { display: flex; gap: 8px; align-items: baseline; font-size: 15px; white-space: nowrap; overflow: hidden; }
+.trilha span { color: rgba(255,255,255,.7); }
+.trilha b { font-weight: 700; }
+.faixa .menu-btn { margin-left: auto; display: none; border: 0; background: rgba(255,255,255,.12); color: #fff; border-radius: 10px; padding: 7px 12px; font: inherit; font-weight: 600; cursor: pointer; }
+
+/* capa */
+.capa { max-width: 1240px; margin: 24px auto 0; padding: 0 20px; }
+.capa .caixa { background: linear-gradient(135deg, var(--indigo) 0%, var(--indigo-2) 60%, var(--indigo) 100%); color: #fff; border-radius: 20px; padding: 32px 36px; position: relative; overflow: hidden; }
+.capa .caixa::after { content: ""; position: absolute; right: -60px; top: -60px; width: 240px; height: 240px; border-radius: 50%; background: radial-gradient(circle, rgba(255,143,31,.35), transparent 70%); }
+.capa .orgao { font-size: 12px; letter-spacing: .3em; font-weight: 600; text-transform: uppercase; opacity: .85; }
+.capa h1 { margin: 6px 0 10px; font-size: clamp(26px, 3.4vw, 36px); font-weight: 800; letter-spacing: -.01em; line-height: 1.15; }
+.capa .autor { display: inline-flex; align-items: center; gap: 12px; margin: 2px 0 16px; padding: 8px 16px 8px 8px; border-radius: 99px; background: rgba(255,255,255,.1); position: relative; z-index: 1; }
+.capa .autor .iniciais { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: 14px; background: linear-gradient(135deg, var(--laranja), var(--laranja-2)); }
+.capa .autor small { display: block; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; opacity: .8; font-weight: 600; }
+.capa .autor b { font-size: 16px; font-weight: 700; }
+.capa .intro { max-width: 860px; color: rgba(255,255,255,.9); }
+.capa .intro p { margin: 0 0 8px; }
+.capa .intro strong { color: #fff; }
+.capa .intro code { background: rgba(255,255,255,.14); color: #fff; }
+.capa .selos { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+.capa .selo { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; padding: 4px 12px; border-radius: 99px; background: rgba(255,255,255,.14); }
+.capa .selo.laranja { background: var(--laranja); }
+
+/* corpo: menu lateral + secoes */
+.corpo { max-width: 1240px; margin: 20px auto 40px; padding: 0 20px; display: grid; grid-template-columns: 270px minmax(0, 1fr); gap: 20px; align-items: start; }
+.menu { position: sticky; top: 72px; max-height: calc(100vh - 90px); overflow: auto; background: var(--cartao); border: 1px solid var(--linha); border-radius: var(--raio); padding: 12px 8px; }
+.menu .rotulo { font-size: 11px; letter-spacing: .14em; font-weight: 700; color: var(--rotulo); text-transform: uppercase; padding: 4px 10px 8px; }
+.menu a { display: flex; gap: 10px; align-items: baseline; padding: 6px 10px; border-radius: 9px; text-decoration: none; color: var(--tinta); font-size: 14px; line-height: 1.35; }
+.menu a:hover { background: var(--indigo-claro); }
+.menu a.ativo { background: var(--indigo); color: #fff; }
+.menu a.ativo .num { color: var(--laranja-2); }
+.menu .num { flex: none; width: 20px; text-align: right; font-weight: 700; color: var(--rotulo); font-size: 12px; }
+.menu code { background: none; padding: 0; color: inherit; font-size: inherit; }
+.conteudo { display: grid; gap: 16px; min-width: 0; }
+
+.cartao { background: var(--cartao); border: 1px solid var(--linha); border-radius: var(--raio); padding: 22px 26px; min-width: 0; }
+.cartao h2 { margin: 0 0 14px; font-size: 22px; font-weight: 700; letter-spacing: -.01em; display: flex; align-items: center; gap: 12px; }
+.cartao h2 .num { display: inline-grid; place-items: center; min-width: 34px; height: 34px; padding: 0 8px; border-radius: 10px; background: var(--indigo-claro); color: var(--indigo); font-size: 15px; font-weight: 800; }
+.cartao h3 { margin: 22px 0 8px; font-size: 16.5px; font-weight: 700; color: var(--indigo); padding-left: 10px; border-left: 3px solid var(--laranja); }
+.cartao h4 { margin: 16px 0 6px; font-size: 15px; }
+.cartao p { margin: 8px 0; }
+.cartao ul, .cartao ol { margin: 8px 0; padding-left: 22px; }
+.cartao li { margin: 4px 0; }
+.cartao li::marker { color: var(--laranja); }
+.cartao strong { font-weight: 700; }
+
+code { font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; font-size: 13px; background: var(--indigo-claro); color: var(--indigo-2); padding: 1px 6px; border-radius: 6px; overflow-wrap: anywhere; }
+pre { position: relative; background: #17154a; color: #e9e8ff; border-radius: 12px; padding: 14px 16px; overflow-x: auto; margin: 10px 0; border: 1px solid #2a2675; }
+pre code { background: none; color: inherit; padding: 0; font-size: 13px; line-height: 1.55; overflow-wrap: normal; white-space: pre; }
+.copiar { position: absolute; top: 8px; right: 8px; border: 0; border-radius: 8px; padding: 4px 10px; font: 600 12px "Outfit", sans-serif; cursor: pointer; background: rgba(255,255,255,.12); color: #fff; opacity: 0; transition: opacity .15s; }
+pre:hover .copiar, .copiar:focus { opacity: 1; }
+.copiar.ok { background: var(--ok); opacity: 1; }
+
+.tabela { overflow-x: auto; margin: 10px 0; border: 1px solid var(--linha); border-radius: 12px; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th { background: var(--indigo-claro); color: var(--indigo-3); text-align: left; font-weight: 700; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; padding: 10px 12px; }
+td { padding: 9px 12px; border-top: 1px solid var(--linha); vertical-align: top; }
+tr:nth-child(even) td { background: #fafbfe; }
+blockquote { margin: 10px 0; padding: 10px 14px; background: var(--aviso-bg); color: var(--aviso); border-radius: 12px; border-left: 4px solid var(--laranja); }
+blockquote p { margin: 4px 0; }
+
+.rodape { background: var(--indigo); border-top: 3px solid var(--laranja); color: #fff; text-align: center; padding: 12px 16px; font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+.subir { position: fixed; right: 18px; bottom: 18px; width: 42px; height: 42px; border-radius: 50%; border: 0; cursor: pointer; color: #fff; font-size: 18px;
+  background: linear-gradient(90deg, var(--laranja), var(--laranja-2)); box-shadow: 0 10px 22px rgba(255,107,0,.28); display: none; }
+.subir.mostrar { display: block; }
+
+@media (max-width: 900px) {
+  .corpo { grid-template-columns: 1fr; }
+  .menu { display: none; position: static; max-height: none; }
+  .menu.aberto { display: block; }
+  .faixa .menu-btn { display: inline-block; }
+  .capa .caixa { padding: 24px 20px; }
+  .trilha span { display: none; }
+  .cartao { padding: 18px 16px; }
+}
+@media print {
+  .topo, .menu, .subir, .copiar { display: none !important; }
+  .corpo { grid-template-columns: 1fr; }
+  .cartao { break-inside: avoid-page; }
+  body { background: #fff; }
+}
+</style>
+</head>
+<body>
+<header class="topo"><div class="faixa"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#2b1f9e"/><rect x="12" y="14" width="40" height="28" rx="4" fill="none" stroke="#fff" stroke-width="4"/><path d="M26 50h12M32 42v8" stroke="#fff" stroke-width="4" stroke-linecap="round"/><circle cx="32" cy="28" r="6" fill="#ff7a00"/></svg>
+  <div class="trilha"><span>Gestão TI</span><span>/</span><b>Documentação</b></div>
+  <button class="menu-btn" id="menu-btn" type="button">Sumário</button>
+</div></header>
+
+<div class="capa">
+  <div class="caixa">
+    <div class="orgao">Prefeitura Municipal de Santa Luzia</div>
+
+    <h1>Gestão TI — Prefeitura Municipal de Santa Luzia</h1>
+
+    <div class="autor">
+      <span class="iniciais">BM</span>
+      <div>
+        <small>Autor do sistema e da documentação</small>
+        <b>Bernardo Mozelli de Medeiros</b>
+        <small class="instituicao">
+          Secretaria de Planejamento, Ciência, Tecnologia e Inovação
+        </small>
+      </div>
+    </div>
+
+    <div class="intro">
+      <p>
+        Central de gestão da equipe de Tecnologia da Informação da Prefeitura de Santa Luzia/MG.
+        Reúne, numa única aplicação web com login pelo Active Directory, as ferramentas do dia a dia da TI:
+        liberação do Wi-Fi nos computadores, senhas dos visitantes do Wi-Fi, gestão das contas do AD,
+        disparo de e-mails em lote, configurações e um registro completo de tudo o que é feito.
+      </p>
+
+      <p>
+        Este sistema substitui o antigo <strong>pmsl-wifi-aprovacao</strong>: o módulo
+        <em>Wi-Fi no computador</em> é a evolução dele, e o script
+        <code>migrar_de_wifiaprovacao.sh</code> faz a troca no servidor copiando todos os dados.
+      </p>
+    </div>
+
+    <div class="selos">
+      <span class="selo laranja">Documentação técnica</span>
+      <span class="selo">Atualizada em 07/10/2026</span>
+      <span class="selo">24 seções</span>
+    </div>
+  </div>
+</div>
+
+<div class="corpo">
+  <nav class="menu" id="menu"><div class="rotulo">Sumário</div><a href="#s1"><span class="num">1</span><span>Visão geral</span></a><a href="#s2"><span class="num">2</span><span>Tecnologias utilizadas</span></a><a href="#s3"><span class="num">3</span><span>Arquitetura</span></a><a href="#s4"><span class="num">4</span><span>Estrutura de pastas</span></a><a href="#s5"><span class="num">5</span><span>Módulos</span></a><a href="#s6"><span class="num">6</span><span>Acesso, permissões e adm geral</span></a><a href="#s7"><span class="num">7</span><span>Gestão de Usuários</span></a><a href="#s8"><span class="num">8</span><span>Rede Sem Fio → Wi-Fi no computador</span></a><a href="#s9"><span class="num">9</span><span>Rede Sem Fio → Wi-Fi Visitante</span></a><a href="#s10"><span class="num">10</span><span>E-mails em lote</span></a><a href="#s11"><span class="num">11</span><span>Configurações</span></a><a href="#s12"><span class="num">12</span><span>Logs e auditoria</span></a><a href="#s13"><span class="num">13</span><span>Active Directory</span></a><a href="#s14"><span class="num">14</span><span>Variáveis do <code>.env</code></span></a><a href="#s15"><span class="num">15</span><span>Instalação local (testes)</span></a><a href="#s16"><span class="num">16</span><span>Subida no servidor (troca do sistema antigo)</span></a><a href="#s17"><span class="num">17</span><span>Atualização, backup e restauração</span></a><a href="#s18"><span class="num">18</span><span>Endereço gestaoti e proxy reverso</span></a><a href="#s19"><span class="num">19</span><span>Estações Windows (GPO)</span></a><a href="#s20"><span class="num">20</span><span>Endereços das telas e da API</span></a><a href="#s21"><span class="num">21</span><span>Banco de dados</span></a><a href="#s22"><span class="num">22</span><span>Segurança</span></a><a href="#s23"><span class="num">23</span><span>Solução de problemas</span></a><a href="#s24"><span class="num">24</span><span>Comandos úteis</span></a></nav>
+  <main class="conteudo"><section class="cartao" id="s1"><h2><span class="num">1</span>Visão geral</h2><ul>
+<li><strong>Uma entrada só:</strong> todos acessam com o usuário e a senha do AD. Há também um usuário local (<code>admin</code>)
+  para emergência, caso o AD esteja fora do ar.</li>
+<li><strong>Módulos por pessoa:</strong> cada usuário vê só os módulos que recebeu. Quem não tem permissão vê os
+  módulos de e-mail marcados como <em>Aguardando liberação</em>.</li>
+<li><strong>Tudo registrado:</strong> cada ação (login, permissão, senha, liberação, disparo, configuração) vai para o
+  módulo <strong>Logs</strong>, com autor, IP, data e detalhe. Senhas nunca são gravadas.</li>
+<li><strong>Configuração pela tela:</strong> servidor de e-mail e banco do Wi-Fi Visitante são configurados no módulo
+  <strong>Configurações</strong>, com os segredos criptografados no banco.</li>
+<li><strong>Roda em Docker:</strong> dois containers (aplicação e PostgreSQL) e um terceiro opcional para testes de
+  e-mail (Mailpit).</li>
+</ul></section><section class="cartao" id="s2"><h2><span class="num">2</span>Tecnologias utilizadas</h2><h3>Backend</h3>
+<table>
+<thead>
+<tr>
+<th>Tecnologia</th>
+<th>Versão</th>
+<th>Uso</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Python</strong></td>
+<td>3.12 (imagem <code>python:3.12-slim</code>)</td>
+<td>Linguagem da aplicação</td>
+</tr>
+<tr>
+<td><strong>FastAPI</strong></td>
+<td>0.115.6</td>
+<td>Framework web: rotas da API, validação, dependências de permissão</td>
+</tr>
+<tr>
+<td><strong>Uvicorn</strong> (<code>uvicorn[standard]</code>)</td>
+<td>0.34.0</td>
+<td>Servidor ASGI que executa o FastAPI (com <code>--proxy-headers</code>)</td>
+</tr>
+<tr>
+<td><strong>Pydantic</strong></td>
+<td>(dependência do FastAPI)</td>
+<td>Validação dos dados recebidos pela API</td>
+</tr>
+<tr>
+<td><strong>SQLAlchemy</strong></td>
+<td>2.0.36</td>
+<td>ORM: modelos, consultas e migrações simples de colunas</td>
+</tr>
+<tr>
+<td><strong>psycopg</strong> (<code>psycopg[binary]</code>)</td>
+<td>3.2.3</td>
+<td>Driver do PostgreSQL</td>
+</tr>
+<tr>
+<td><strong>ldap3</strong></td>
+<td>2.9.1</td>
+<td>Comunicação com o Active Directory: login (bind), buscas paginadas, troca de senha, desbloqueio e reativação</td>
+</tr>
+<tr>
+<td><strong>dnspython</strong></td>
+<td>2.7.0</td>
+<td>DNS reverso (PTR) para identificar o computador pelo IP</td>
+</tr>
+<tr>
+<td><strong>bcrypt</strong></td>
+<td>4.2.1</td>
+<td>Hash das senhas dos usuários locais</td>
+</tr>
+<tr>
+<td><strong>itsdangerous</strong></td>
+<td>2.2.0</td>
+<td>Assinatura dos cookies de sessão</td>
+</tr>
+<tr>
+<td><strong>cryptography</strong> (Fernet)</td>
+<td>44.0.0</td>
+<td>Criptografia dos segredos salvos pela tela (senha do SMTP, do banco e do SSH do RADIUS)</td>
+</tr>
+<tr>
+<td><strong>httpx</strong></td>
+<td>0.28.1</td>
+<td>Chamadas HTTP para Telegram e WhatsApp (Evolution API)</td>
+</tr>
+<tr>
+<td><strong>PyMySQL</strong></td>
+<td>1.1.1</td>
+<td>Conexão com o banco MySQL/MariaDB do portal de visitantes (RADIUS)</td>
+</tr>
+<tr>
+<td><strong>sshtunnel</strong> + <strong>paramiko</strong></td>
+<td>0.4.0 / 3.5.1</td>
+<td>Túnel SSH até o servidor do RADIUS quando o MySQL só aceita conexões locais</td>
+</tr>
+<tr>
+<td><strong>python-multipart</strong></td>
+<td>0.0.20</td>
+<td>Upload de anexos, imagens e listas TXT</td>
+</tr>
+<tr>
+<td><strong>smtplib / email</strong></td>
+<td>biblioteca padrão</td>
+<td>Envio dos e-mails (STARTTLS, SSL ou sem criptografia)</td>
+</tr>
+<tr>
+<td><strong>threading</strong></td>
+<td>biblioteca padrão</td>
+<td>Fila de envio de e-mails e carga do AD em segundo plano</td>
+</tr>
+</tbody>
+</table>
+<h3>Banco de dados</h3>
+<table>
+<thead>
+<tr>
+<th>Tecnologia</th>
+<th>Versão</th>
+<th>Uso</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>PostgreSQL</strong></td>
+<td>16 (imagem <code>postgres:16-alpine</code>)</td>
+<td>Banco da Gestão TI</td>
+</tr>
+<tr>
+<td><strong>MySQL / MariaDB</strong></td>
+<td>o do portal</td>
+<td>Banco <code>radio</code> do RADIUS (somente leitura e <code>UPDATE</code> nas tabelas de visitantes)</td>
+</tr>
+</tbody>
+</table>
+<h3>Frontend</h3>
+<table>
+<thead>
+<tr>
+<th>Tecnologia</th>
+<th>Uso</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>HTML5 + CSS3 + JavaScript puro</strong> (sem framework e sem etapa de build)</td>
+<td>Todas as telas, servidas pelo próprio FastAPI em <code>api/app/static</code></td>
+</tr>
+<tr>
+<td><strong>SweetAlert2</strong> (arquivo local <code>sweetalert2.all.min.js</code>)</td>
+<td>Janelas de confirmação, formulários e avisos (não usamos <code>window.confirm</code>)</td>
+</tr>
+<tr>
+<td><strong>Fetch API + AbortController</strong></td>
+<td>Chamadas à API e cancelamento de buscas anteriores ao digitar</td>
+</tr>
+<tr>
+<td><strong>SVG</strong></td>
+<td>Ícones e favicon embutidos</td>
+</tr>
+</tbody>
+</table>
+<h3>Infraestrutura e scripts</h3>
+<table>
+<thead>
+<tr>
+<th>Tecnologia</th>
+<th>Uso</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Docker</strong> + <strong>Docker Compose</strong> (plugin <code>docker compose</code>)</td>
+<td>Execução dos containers <code>gestao-ti-api</code>, <code>gestao-ti-db</code> e <code>gestao-ti-mailpit</code></td>
+</tr>
+<tr>
+<td><strong>Mailpit</strong> (<code>axllent/mailpit</code>)</td>
+<td>Servidor de e-mail falso para testes (perfil <code>teste</code>)</td>
+</tr>
+<tr>
+<td><strong>Bash</strong></td>
+<td><code>aplicar_gestao_ti.sh</code> (instala/atualiza) e <code>migrar_de_wifiaprovacao.sh</code> (troca o sistema antigo)</td>
+</tr>
+<tr>
+<td><strong>PowerShell</strong></td>
+<td><code>wlan-filter.ps1</code>, executado nas estações pela GPO (bloqueio/liberação do Wi-Fi)</td>
+</tr>
+<tr>
+<td><strong>Active Directory / GPO / NETLOGON</strong></td>
+<td>Autenticação, grupos/OUs, distribuição do script e do atalho do portal</td>
+</tr>
+<tr>
+<td><strong>FreeRADIUS (banco <code>radio</code>)</strong></td>
+<td>Autenticação dos visitantes no Wi-Fi; a Gestão TI altera as senhas direto nas tabelas dele</td>
+</tr>
+</tbody>
+</table></section><section class="cartao" id="s3"><h2><span class="num">3</span>Arquitetura</h2><div class="highlight"><pre><span></span><code>                ┌───────────────────────────┐
+ Navegador ───► │  gestao-ti-api (FastAPI)  │ ◄─── Estações Windows (wlan-filter.ps1, a cada 5 min)
+                │  porta 8090 → 8000        │       GET /api/agente/liberacao  (X-Agent-Key)
+                └──┬────────┬────────┬──────┘
+                   │        │        │
+       PostgreSQL ◄┘        │        └► MySQL do portal de visitantes (10.1.0.4, banco radio)
+     (gestao-ti-db)         │             direto ou por túnel SSH
+                            │
+            AD 10.1.100.2 / 10.1.100.3 (LDAPS 636 / StartTLS 389, failover)
+                            │
+                  SMTP (conta geral@)  ·  Telegram / WhatsApp (avisos do Wi-Fi)
+</code></pre></div>
+<ul>
+<li><strong>Uma única aplicação</strong> serve as telas (HTML estático) e a API (<code>/api/...</code>).</li>
+<li><strong>Processos em segundo plano</strong> dentro da API:</li>
+<li>fila de envio de e-mails (retoma sozinha depois de reiniciar);</li>
+<li>bloqueio automático das liberações do Wi-Fi que venceram;</li>
+<li>carga da lista completa do AD na subida e atualização periódica (cache em memória).</li>
+<li><strong>Middlewares:</strong> compressão GZip (respostas acima de 2 KB) e registro do IP de cada requisição para os logs.</li>
+<li><strong>Dados persistentes</strong> em dois volumes Docker: <code>dados_db</code> (PostgreSQL) e <code>dados_app</code> (anexos e imagens dos e-mails).</li>
+</ul></section><section class="cartao" id="s4"><h2><span class="num">4</span>Estrutura de pastas</h2><div class="highlight"><pre><span></span><code>gestao-ti/
+├── .env.example                  modelo de configuração (copiado para .env na 1ª instalação)
+├── .env                          configuração real (NÃO versionar; permissão 600)
+├── docker-compose.yml            serviços db, api e mailpit (perfil &quot;teste&quot;)
+├── aplicar_gestao_ti.sh          instala ou atualiza em /opt/gestao-ti
+├── migrar_de_wifiaprovacao.sh    troca o sistema antigo do Wi-Fi pela Gestão TI, copiando os dados
+├── marca/                        coloque logo.svg ou logo.png aqui (aparece em todas as telas)
+├── cliente-windows/
+│   ├── wlan-filter.ps1           modelo do script da GPO (endereço e chave preenchidos na instalação)
+│   └── icone/                    ícone do atalho do portal
+├── saida-windows/                (gerada na instalação) script da GPO pronto para o NETLOGON
+└── api/
+    ├── Dockerfile
+    ├── requirements.txt
+    └── app/
+        ├── main.py               aplicação FastAPI: login, portal Wi-Fi, painel Wi-Fi, usuários, páginas
+        ├── config.py             leitura do .env
+        ├── db.py                 modelos SQLAlchemy e migrações de colunas
+        ├── auth.py               sessão, adm geral, exigir_modulo, quem pode conceder
+        ├── modulos.py            catálogo de módulos e grupos
+        ├── ad.py                 conexão com o AD (LDAPS/StartTLS, failover entre DCs) — `python -m app.ad` testa
+        ├── ad_senhas.py          lista do AD em cache, redefinir senha, desbloquear, reativar (regra do SEI)
+        ├── senhas_api.py         rotas /api/senhas
+        ├── visitante_api.py      rotas /api/visitante (Wi-Fi Visitante)
+        ├── radius.py             acesso ao banco do RADIUS (MySQL), túnel SSH, formatos de senha
+        ├── email_lote.py         disparos em lote: destinatários, anexos, imagens, fila de envio
+        ├── configuracoes_api.py  rotas /api/configuracoes (e-mail e RADIUS)
+        ├── ajustes.py            configurações salvas no banco (com prioridade sobre o .env) e criptografia
+        ├── logs_api.py           rotas /api/logs e catálogo de ações
+        ├── auditoria.py          registrar() e preenchimento automático do IP
+        ├── notificar.py          avisos de novos pedidos de Wi-Fi (Telegram / WhatsApp)
+        └── static/               telas: inicio, portal, wifi, wifi-visitante, rede-sem-fio, email,
+                                  usuarios, configuracoes, logs, estilo.css, comum.js, contas-ad.js
+</code></pre></div></section><section class="cartao" id="s5"><h2><span class="num">5</span>Módulos</h2><table>
+<thead>
+<tr>
+<th>Grupo</th>
+<th>Módulo</th>
+<th>Endereço</th>
+<th>O que faz</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Rede Sem Fio</td>
+<td><strong>Wi-Fi no computador</strong></td>
+<td><code>/m/wifi</code></td>
+<td>Pedidos de liberação do Wi-Fi, liberações por tempo, bloqueios, computadores, pessoas e registro de atividades</td>
+</tr>
+<tr>
+<td>Rede Sem Fio</td>
+<td><strong>Wi-Fi Visitante</strong></td>
+<td><code>/m/wifi-visitante</code></td>
+<td>Cadastros do portal de visitantes (RADIUS): busca, troca de senha, ativar e desativar</td>
+</tr>
+<tr>
+<td>E-mails</td>
+<td><strong>E-mails para usuários do AD</strong></td>
+<td><code>/m/email?origem=ad</code></td>
+<td>Disparo em lote para os usuários ativos do AD</td>
+</tr>
+<tr>
+<td>E-mails</td>
+<td><strong>E-mails por lista (TXT)</strong></td>
+<td><code>/m/email?origem=lista</code></td>
+<td>Disparo em lote para uma lista enviada em arquivo</td>
+</tr>
+<tr>
+<td>Administração</td>
+<td><strong>Gestão de Usuários</strong></td>
+<td><code>/m/usuarios</code></td>
+<td>Contas do AD e locais: permissões, redefinir senha, desbloquear, reativar</td>
+</tr>
+<tr>
+<td>Administração</td>
+<td><strong>Configurações</strong></td>
+<td><code>/m/configuracoes</code></td>
+<td>Conta de envio, servidor de e-mail, limites e banco do Wi-Fi Visitante</td>
+</tr>
+<tr>
+<td>Administração</td>
+<td><strong>Logs</strong></td>
+<td><code>/m/logs</code></td>
+<td>Todas as ações do sistema, com filtros e exportação CSV</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><code>/m/rede-sem-fio</code> mostra os dois módulos do grupo; quem tem só um vai direto para ele.</li>
+<li>O antigo módulo <em>Reset de senha</em> foi incorporado à Gestão de Usuários (<code>/m/senhas</code> redireciona).</li>
+<li>Todos os módulos têm, no topo, o botão <strong>voltar</strong>, a trilha (Gestão TI › grupo › módulo) e o menu da conta (Início, Sair).</li>
+</ul></section><section class="cartao" id="s6"><h2><span class="num">6</span>Acesso, permissões e adm geral</h2><h3>Quem entra</h3>
+<table>
+<thead>
+<tr>
+<th>Tipo de conta</th>
+<th>O que acontece no login</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Equipe da TI</strong> (dentro da OU <code>AD_OU_PERMITIDA</code> ou membro do grupo <code>AD_GRUPO_PERMITIDO</code>, inclusive grupos aninhados)</td>
+<td>No primeiro acesso recebe todos os módulos disponíveis. Não concede permissões, a não ser que o adm geral autorize</td>
+</tr>
+<tr>
+<td><strong>Qualquer outra conta ativa do AD</strong></td>
+<td>Entra, mas sem módulos. Vê os módulos de e-mail como <em>Aguardando liberação</em> e não consegue fazer nada até receber permissão</td>
+</tr>
+<tr>
+<td><strong>Conta desativada no AD</strong> ou bloqueada na Gestão TI</td>
+<td>Não entra</td>
+</tr>
+<tr>
+<td><strong>Usuário local <code>admin</code></strong> (<code>ADMIN_USER</code>)</td>
+<td>Acesso de emergência (se <code>LOGIN_LOCAL_HABILITADO=true</code>); é adm geral</td>
+</tr>
+</tbody>
+</table>
+<h3>Quem concede permissões</h3>
+<ul>
+<li><strong>Adm geral:</strong> o <code>admin</code> local e os logins listados em <code>ADMIN_GERAL</code> (separados por vírgula). Tem sempre
+  todos os módulos, concede permissões e é o <strong>único</strong> que autoriza outras pessoas a conceder.</li>
+<li><strong>Autorizados pelo adm geral:</strong> no diálogo <strong>Permissões</strong>, o adm geral marca
+  <em>"Pode conceder permissões a outros usuários"</em>. A pessoa passa a dar e tirar módulos, bloquear o acesso
+  à Gestão TI e criar usuários locais, mas não autoriza ninguém a conceder.</li>
+<li><strong>Os demais</strong>, mesmo com o módulo Gestão de Usuários, veem a lista e mexem nas contas do AD (senha,
+  desbloqueio, reativação), mas não alteram permissões.</li>
+<li>Qualquer usuário pode receber qualquer módulo; o controle está em <strong>quem concede</strong>.</li>
+<li>Ninguém altera as próprias permissões nem o próprio acesso, e só um adm geral altera outro adm geral.</li>
+<li>Tentativas de abrir um módulo sem permissão viram registro <code>acesso_negado</code> nos Logs.</li>
+</ul></section><section class="cartao" id="s7"><h2><span class="num">7</span>Gestão de Usuários</h2><h3>Lista</h3>
+<ul>
+<li>Mostra <strong>todas as contas do AD</strong> e os usuários locais, em abas <strong>Ativos</strong> e <strong>Desativados</strong>, com a contagem de cada uma.</li>
+<li>Etiquetas: <strong>AD</strong> ou <strong>Local</strong>, <strong>TI</strong>, <strong>Adm geral</strong>, <strong>Concede permissões</strong>, <strong>Bloqueada no AD</strong>,
+  <strong>Sem uso há N dias · exige SEI</strong>.</li>
+<li><strong>Busca</strong> por login, nome, CPF (atributo <code>employeeID</code>, com ou sem pontuação) ou matrícula (atributo <code>initials</code>).
+  A busca olha as duas abas: se o resultado estiver na outra, a tela avisa e leva até lá.</li>
+<li><strong>Filtros rápidos:</strong> com/sem acesso à Gestão TI, equipe da TI, bloqueadas no AD, contas com atenção (bolinha laranja),
+  só AD, só locais.</li>
+<li>Cada pessoa mostra os módulos que tem, ou <strong>"Nunca acessou o Gestão TI"</strong>, o último logon no AD e o último acesso ao sistema.</li>
+<li>Quem está usando um computador agora aparece com <strong>"Logado agora no Windows: ST-XXXX desde HH:MM"</strong>, pelo que o script
+  da GPO informou nos últimos 30 minutos.</li>
+<li>O CPF aparece mascarado (<code>***.456.789-**</code>) e não sai do servidor completo.</li>
+</ul>
+<h3>Bolinha de status</h3>
+<p>Ao lado do nome de cada conta do AD aparece uma bolinha, como no Gestão TI antigo. Passe o mouse nela para ver o motivo.</p>
+<table>
+<thead>
+<tr>
+<th>Cor</th>
+<th>Quando</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>🟢 Verde</td>
+<td>Conta ativa e normal (<code>userAccountControl</code> = 512)</td>
+</tr>
+<tr>
+<td>🟠 Laranja</td>
+<td>Ativa, mas com algo fora do padrão: senha nunca expira, não exige senha, senha expirada, deve trocar a senha no próximo logon, confiável para delegação etc.</td>
+</tr>
+<tr>
+<td>🔴 Vermelha</td>
+<td>Desativada no AD, ou bloqueada por senha errada</td>
+</tr>
+</tbody>
+</table>
+<p>O sistema antigo comparava só o valor exato do <code>userAccountControl</code> (512 verde; 2, 16, 514, 546, 66050, 66082 vermelho; o resto laranja).
+O novo lê os bits do mesmo campo, então dá o mesmo resultado para esses valores e explica o motivo. Também usa o <code>lockoutTime</code>
+para o bloqueio, porque o AD não grava o bloqueio no <code>userAccountControl</code>, e acrescenta senha expirada e troca obrigatória como laranja.
+O filtro <strong>Contas com atenção (bolinha laranja)</strong> lista só essas.</p>
+<h3>Ações em contas do AD</h3>
+<table>
+<thead>
+<tr>
+<th>Ação</th>
+<th>Detalhes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Permissões</strong></td>
+<td>Módulos da pessoa, bloqueio do acesso à Gestão TI e (só adm geral) <em>Pode conceder permissões</em></td>
+</tr>
+<tr>
+<td><strong>Redefinir senha</strong></td>
+<td>Senha gerada (ex.: <code>Folha-Arara-5864!</code>) ou digitada. Por padrão, exige troca no próximo logon e desbloqueia junto</td>
+</tr>
+<tr>
+<td><strong>Desbloquear</strong></td>
+<td>Zera o bloqueio por senha errada (<code>lockoutTime</code>), sem trocar a senha</td>
+</tr>
+<tr>
+<td><strong>Reativar no AD</strong></td>
+<td>Liga a conta (<code>userAccountControl</code>), com senha nova opcional (recomendado: o AD recusa reativar sem senha válida)</td>
+</tr>
+<tr>
+<td><strong>Finalizar sessão</strong></td>
+<td>Último botão da linha, depois de Permissões. Desconecta da Gestão TI e/ou faz logoff no Windows (veja abaixo)</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>O motivo ou número do chamado é obrigatório nas ações de conta.</li>
+<li>A senha gerada aparece uma única vez na tela e não é gravada em lugar nenhum.</li>
+<li><strong>A própria senha:</strong> na sua conta, o botão aparece como <strong>Redefinir minha senha</strong>, e a opção "exigir troca no próximo logon"
+  vem desmarcada. O registro indica quando foi a própria conta.</li>
+<li><strong>Contas de administradores do AD</strong> (<code>adminCount=1</code>, como Domain Admins) <strong>continuam protegidas</strong>. Elas não usam as permissões
+  delegadas na OU, e sim as do objeto <strong>AdminSDHolder</strong>, e a conta de serviço da Gestão TI <strong>não</strong> tem permissão nele, por
+  decisão de segurança: com essa permissão, quem controlasse a conta de serviço (ou o servidor) conseguiria trocar a senha de um
+  Domain Admin e tomar o domínio. Se alguém tentar, o AD recusa e a tela explica o motivo. Senhas de administradores do
+  domínio continuam sendo trocadas no ADUC, por outro administrador do domínio.</li>
+</ul>
+<h3>Finalizar sessão</h3>
+<p>O botão <strong>Finalizar sessão</strong> é o último da linha de ações, depois de <strong>Permissões</strong>. Ele aparece para quem já acessou o
+Gestão TI ou está logado agora no Windows. No diálogo, a TI marca o que encerrar; o campo <strong>Motivo / nº do chamado</strong> é
+<strong>opcional</strong> (em branco, o registro mostra "motivo: não informado").</p>
+<table>
+<thead>
+<tr>
+<th>Opção</th>
+<th>O que acontece</th>
+<th>Quanto tempo leva</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Gestão TI e portal do Wi-Fi</strong></td>
+<td>Desconecta a pessoa em todos os navegadores. Todo login feito antes desse momento deixa de valer (tabela <code>sessoes_encerradas</code>); a próxima tela mostra "Sua sessão foi finalizada pela TI". Ela pode entrar de novo em seguida</td>
+<td>Na hora</td>
+</tr>
+<tr>
+<td><strong>Windows em COMPUTADOR</strong> (uma caixa por computador em que ela aparece logada)</td>
+<td>Logoff da pessoa naquele computador. Com <strong>"Avisar na tela 1 minuto antes"</strong>, ela recebe uma mensagem para salvar o trabalho</td>
+<td>Até <strong>1 minuto</strong> (próxima consulta do script), mais 1 minuto se o aviso estiver marcado</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Como o logoff no Windows funciona.</strong> O servidor não acessa os computadores. O pedido fica guardado (tabela
+<code>comandos_estacao</code>) e é entregue na próxima consulta do script da GPO (<code>/api/agente/liberacao</code> devolve os <code>comandos</code>).
+O script usa <code>quser</code> para achar as sessões daquele usuário, avisa com <code>msg</code> (se pedido), faz <code>logoff</code> só dessas sessões
+(outras pessoas logadas no mesmo computador não são afetadas) e informa o resultado ao servidor
+(<code>/api/agente/comando/{id}/resultado</code>): <strong>ok</strong>, <strong>nao_logado</strong> ou <strong>erro</strong>. Pedido entregue sem resposta é entregue de novo
+depois de 10 minutos; pedido não entregue em <strong>12 horas</strong> (computador desligado) é descartado.</p>
+<p><strong>Cuidados</strong>
+- Só funciona nas estações com o script desta versão (procure <code>Executar-Comandos</code> no <code>C:\ProgramData\PMSL\wlan-filter.ps1</code>).
+  Pedidos feitos para máquinas com o script antigo ficam esperando e são <strong>executados quando o script novo chegar</strong>, dentro
+  das 12 horas. Para cancelar pedidos pendentes:
+  <code>sudo docker exec gestao-ti-db psql -U gestao gestao_ti -c "update comandos_estacao set executado_em = now(), resultado = 'cancelado' where executado_em is null;"</code>
+- "Logado agora no Windows" vale por até 30 minutos depois da última consulta do computador. Se a pessoa trocou de máquina,
+  as duas podem aparecer: marque só a máquina atual.
+- Usa <code>quser</code>, <code>msg</code> e <code>logoff</code>, que existem no Windows 10/11 Pro e Enterprise (não no Home).</p>
+<p>Regras: ninguém finaliza a própria sessão por aqui (use <strong>Sair</strong>), e só o adm geral finaliza a sessão de outro adm geral.
+Pedido, execução e resultado ficam nos <strong>Logs</strong> e na aba <strong>Acessos e alterações</strong>.</p>
+<p>Acompanhar os pedidos no servidor:
+<div class="highlight"><pre><span></span><code>sudo docker exec gestao-ti-db psql -U gestao gestao_ti -c &quot;select id, hostname, usuario, criado_em, entregue_em, executado_em, resultado from comandos_estacao order by id desc limit 10;&quot;
+</code></pre></div></p>
+<h3>Regra do SEI (contas sem uso há mais de 90 dias)</h3>
+<ul>
+<li>O "sem uso" é contado pelo último logon no AD (<code>lastLogonTimestamp</code>) ou, se a conta nunca entrou, pela criação (<code>whenCreated</code>).</li>
+<li>Acima de <code>DIAS_REATIVACAO_SEI</code> dias (padrão 90), a reativação exige marcar
+  <strong>"Estou ciente e a reativação deste usuário possui processo SEI"</strong>, com campo opcional para o número do processo.</li>
+<li>Sem a marcação, o servidor recusa, inclusive se chamado direto pela API.</li>
+<li>A confirmação e o número do SEI ficam nos Logs.</li>
+<li>O <code>lastLogonTimestamp</code> replica entre os DCs com até ~14 dias de atraso, o que não afeta uma regra de 90 dias.</li>
+</ul>
+<h3>Velocidade</h3>
+<ul>
+<li>A lista do AD é lida em segundo plano quando o sistema sobe e fica em memória: a tela abre e busca na hora
+  (cerca de 0,1 s com 20 mil contas).</li>
+<li>Quando a lista tem mais de 2 minutos, quem abre recebe a atual e uma atualização roda por trás.</li>
+<li>Depois de redefinir, desbloquear ou reativar, só aquela conta é relida.</li>
+<li>O botão <strong>Atualizar</strong> relê o AD inteiro na hora.</li>
+<li>O log do container mostra o tempo de cada leitura: <code>Lista do AD carregada: N contas em X s</code>.</li>
+</ul></section><section class="cartao" id="s8"><h2><span class="num">8</span>Rede Sem Fio → Wi-Fi no computador</h2><p>Controla quando um computador da prefeitura pode usar outras redes Wi-Fi além da <strong>PMSL-WIRELESS</strong>.</p>
+<h3>Partes</h3>
+<ul>
+<li><strong>Portal do usuário</strong> (<code>/wifi</code>): qualquer pessoa entra com o usuário do AD e pede a liberação do computador que está usando.</li>
+<li><strong>Módulo da TI</strong> (<code>/m/wifi</code>): aprova, nega, libera por horas ou dias, personalizado (até <code>HORAS_MAXIMAS</code>) ou indeterminado;
+  bloqueia de novo; altera o prazo; libera sem pedido; busca pessoas do AD; consulta e exporta o registro de atividades.</li>
+<li><strong>Script da GPO</strong> (<code>wlan-filter.ps1</code>): roda como SYSTEM a cada 5 minutos nas estações, mantém o bloqueio e consulta a API.</li>
+<li><strong>Avisos</strong> de novos pedidos por Telegram e/ou WhatsApp (Evolution API), se configurados no <code>.env</code>.</li>
+</ul>
+<h3>Como o portal identifica o computador</h3>
+<p>Nesta ordem:
+1. pelo IP de quem está acessando (informado pelo script da GPO);
+2. pelo computador em que o login do AD está logado agora (funciona mesmo atrás do proxy de navegação);
+3. pelo nome no atalho (<code>?h=%ComputerName%</code>);
+4. pelo DNS reverso (PTR), se <code>DETECTAR_POR_DNS=true</code>.</p>
+<p>Se nada resolver, o portal pede para digitar o nome; esses pedidos aparecem com a etiqueta <strong>nome digitado</strong>.</p>
+<p><strong>Acesso por proxy (ex.: <code>wifiaprovacao.santaluzia.mg.gov.br</code>).</strong> Quando o acesso chega por um proxy que não está em
+<code>FORWARDED_ALLOW_IPS</code>, todo mundo aparece com o IP do proxy. O sistema percebe isso (a requisição traz <code>X-Forwarded-For</code>)
+e <strong>pula os passos 1 e 4</strong>, que dariam o nome errado (o DNS reverso devolveria o nome do proxy). O log do container avisa:
+<code>Acesso chegando pelo proxy X.X.X.X</code>. Para voltar a identificar pelo IP, coloque esse IP em <code>FORWARDED_ALLOW_IPS</code> e rode
+<code>sudo docker compose up -d</code>. Isso também corrige o IP gravado nos Logs e o bloqueio de login por IP (sem isso, 5 senhas
+erradas de qualquer pessoa bloqueiam o login de todos por 10 minutos).</p>
+<h3>Quem estava usando o computador na liberação</h3>
+<p>Quando a TI libera um computador (aprovando um pedido ou pelo <strong>Liberar computador</strong>), a Gestão TI guarda quem estava logado
+nele naquele momento, pelo que o script da GPO informou nos últimos minutos. Aparece no cartão ("Em uso na liberação"), no
+detalhe do pedido ("Em uso no computador na liberação") e na linha do tempo. Se ninguém estava logado, aparece "ninguém
+logado"; se o computador não tinha dado sinal recente (desligado ou sem o script), "não informado". Liberações feitas antes
+desta versão aparecem como "não informado".</p>
+<h3>Usuário logado em cada computador</h3>
+<ul>
+<li>O script informa quem está na sessão física. A aba <strong>Computadores</strong> mostra o usuário, o nome do AD e desde quando.</li>
+<li>A busca aceita login ou nome ("em qual máquina o joaosilva está?"); a aba <strong>Pessoas</strong> mostra <em>Logado agora em</em>.</li>
+<li>Pedido feito por alguém diferente de quem está logado recebe a etiqueta <strong>pedido por outra pessoa</strong>.</li>
+<li>Limitações: atualiza a cada consulta do script (1 minuto), não inclui sessões RDP e, com a tela bloqueada, continua
+  mostrando quem estava logado.</li>
+</ul>
+<h3>Frequência do script (a cada 1 minuto)</h3>
+<p>A tarefa agendada <strong>PMSL - Filtro WiFi</strong> (GPO <strong>WiFi - Prioridade PMSL-WIRELESS</strong>) roda o script <strong>a cada minuto</strong>, para que
+liberações, bloqueios e o logoff do Finalizar sessão cheguem rápido. O editor de tarefas da GPO não aceita intervalo menor que
+5 minutos, então a tarefa tem <strong>5 disparadores diários</strong>, cada um repetindo a cada 5 minutos, começando com 1 minuto de
+diferença:</p>
+<table>
+<thead>
+<tr>
+<th>Disparador</th>
+<th>Início</th>
+<th>Repete a cada</th>
+<th>Duração</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Daily 1</td>
+<td>00:00:00</td>
+<td>5 minutos</td>
+<td>Indefinitely</td>
+</tr>
+<tr>
+<td>Daily 2</td>
+<td>00:01:00</td>
+<td>5 minutos</td>
+<td>Indefinitely</td>
+</tr>
+<tr>
+<td>Daily 3</td>
+<td>00:02:00</td>
+<td>5 minutos</td>
+<td>Indefinitely</td>
+</tr>
+<tr>
+<td>Daily 4</td>
+<td>00:03:00</td>
+<td>5 minutos</td>
+<td>Indefinitely</td>
+</tr>
+<tr>
+<td>Daily 5</td>
+<td>00:04:00</td>
+<td>5 minutos</td>
+<td>Indefinitely</td>
+</tr>
+</tbody>
+</table>
+<p>Além deles ficam o <strong>At startup</strong> e o <strong>On an event</strong>. A varredura pesada de redes continua acontecendo só a cada
+<code>$MinutosVarredura</code> (5) minutos; nas outras execuções o script só consulta a API. O servidor recebe cerca de 1.200
+consultas a cada 5 minutos, o que é esperado.</p>
+<p>Configuração completa da tarefa na GPO: seção 19.</p>
+<h3>Sinal fraco e falta de conexão (script da GPO)</h3>
+<ul>
+<li><strong>Ao bloquear, o script não reinicia mais a placa Wi-Fi.</strong> O reinício fazia o Windows voltar no primeiro ponto de acesso
+  que encontrasse, com sinal fraco, até trocar sozinho minutos depois. Agora: quem já está na PMSL-WIRELESS não perde a
+  conexão; quem está em outra rede é desconectado e conectado direto na PMSL-WIRELESS, e uma varredura nova tira as outras
+  redes da lista. A execução em que a troca acontece não conta como "sem conexão".</li>
+<li><strong>Ao liberar, a placa continua sendo reiniciada</strong>, para as outras redes aparecerem na lista na hora.</li>
+<li>
+<p><strong>API sem resposta com o computador liberado:</strong> a liberação é mantida por até <code>$MinutosToleranciaApi</code> (30) minutos desde
+  a última resposta, respeitando o prazo da liberação. Uma falha rápida de DNS ou a reinicialização do servidor não bloqueia mais.</p>
+</li>
+<li>
+<p>O bloqueio só é ativado quando a PMSL-WIRELESS tem sinal ≥ 40%, e só é desfeito se cair abaixo de 30%.</p>
+</li>
+<li>Se o bloqueio estiver ativo e o computador passar duas execuções seguidas sem conectar na PMSL-WIRELESS,
+  libera as outras redes por 30 minutos e tenta de novo.</li>
+<li>Valores no início do <code>wlan-filter.ps1</code>: <code>$SinalMinimo</code>, <code>$MargemSinal</code>, <code>$ExecucoesSemConexao</code>, <code>$MinutosEsperaSemConexao</code>.</li>
+<li><strong>Se a API cair</strong>, o script segue a regra normal: bloqueia na prefeitura e libera fora dela.</li>
+</ul></section><section class="cartao" id="s9"><h2><span class="num">9</span>Rede Sem Fio → Wi-Fi Visitante</h2><p>O portal do Wi-Fi de visitantes grava os cadastros no banco MySQL <code>radio</code> (servidor <code>10.1.0.4</code>), usado pelo FreeRADIUS.</p>
+<h3>Tabelas usadas</h3>
+<table>
+<thead>
+<tr>
+<th>Tabela</th>
+<th>Colunas usadas</th>
+<th>Para quê</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>reg_users</code></td>
+<td><code>id</code>, <code>idradcheck</code>, <code>nome</code>, <code>cpf</code>, <code>email</code>, <code>celular</code>, <code>ativo</code></td>
+<td>Dados do visitante; <code>idradcheck</code> liga ao login</td>
+</tr>
+<tr>
+<td><code>radcheck</code></td>
+<td><code>id</code>, <code>username</code>, <code>attribute</code>, <code>value</code></td>
+<td>Login (normalmente o CPF) e senha do RADIUS</td>
+</tr>
+</tbody>
+</table>
+<p>O formato da senha é definido pela coluna <code>attribute</code>. A Gestão TI grava <strong>no mesmo formato que já está lá</strong>:</p>
+<table>
+<thead>
+<tr>
+<th><code>attribute</code></th>
+<th>Como a senha é gravada</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>MD5-Password</code></td>
+<td>hash MD5 em hexadecimal (formato atual do portal)</td>
+</tr>
+<tr>
+<td><code>SHA-Password</code> / <code>SHA1-Password</code></td>
+<td>hash SHA-1</td>
+</tr>
+<tr>
+<td><code>SHA2-Password</code> / <code>SHA-256-Password</code></td>
+<td>hash SHA-256</td>
+</tr>
+<tr>
+<td><code>Cleartext-Password</code></td>
+<td>texto puro</td>
+</tr>
+</tbody>
+</table>
+<h3>Busca</h3>
+<ul>
+<li><strong>Nada é carregado ao abrir.</strong> A consulta só acontece com pelo menos 3 caracteres digitados.</li>
+<li>As abas <strong>Ativos</strong> e <strong>Inativos</strong> mostram os totais gerais (guardados por 5 minutos) mesmo antes da busca.</li>
+<li>Como a tabela tem centenas de milhares de cadastros e não tem índices, a busca é direcionada:</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>Digitado</th>
+<th>Onde procura</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>11 dígitos</td>
+<td>CPF ou celular exato, e o login</td>
+</tr>
+<tr>
+<td>número parcial</td>
+<td>início do CPF ou parte do celular</td>
+</tr>
+<tr>
+<td>texto com <code>@</code></td>
+<td>início do e-mail, e o login</td>
+</tr>
+<tr>
+<td>texto</td>
+<td>parte do nome ou início do e-mail</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>Para nos primeiros 500 resultados; se passar, a tela pede para refinar.</li>
+<li>Nomes com acentuação gravada errada (ex.: <code>JosÃ©</code>) são corrigidos só na exibição.</li>
+</ul>
+<p><strong>Opcional, para deixar instantâneo</strong> (combine antes com quem mantém o portal, porque altera a tabela dele):</p>
+<div class="highlight"><pre><span></span><code><span class="k">ALTER</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">radio</span><span class="p">.</span><span class="n">reg_users</span><span class="w"> </span><span class="k">ADD</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">idx_cpf</span><span class="w"> </span><span class="p">(</span><span class="n">cpf</span><span class="p">),</span><span class="w"> </span><span class="k">ADD</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">idx_email</span><span class="w"> </span><span class="p">(</span><span class="n">email</span><span class="p">),</span><span class="w"> </span><span class="k">ADD</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">idx_idradcheck</span><span class="w"> </span><span class="p">(</span><span class="n">idradcheck</span><span class="p">);</span>
+</code></pre></div>
+<h3>Ações</h3>
+<ul>
+<li><strong>Trocar a senha:</strong> gerada (palavra + 4 números, ex.: <code>praia4821</code>) ou digitada (mínimo 6 caracteres, sem acento).
+  Opções: <strong>reativar</strong> o cadastro junto e <strong>enviar por e-mail</strong> para o endereço do cadastro (sai pela conta de envio).
+  O visitante entra com a senha nova na hora. A senha aparece uma vez na tela e nunca é gravada na Gestão TI nem nos logs.</li>
+<li><strong>Ativar / desativar</strong> o cadastro (<code>reg_users.ativo</code>).</li>
+<li><strong>Histórico</strong> de trocas e ativações, com autor, data e IP.</li>
+</ul>
+<h3>Configuração (Configurações → 4. Wi-Fi Visitante)</h3>
+<table>
+<thead>
+<tr>
+<th>Campo</th>
+<th>Descrição</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Servidor / porta / banco</td>
+<td><code>10.1.0.4</code>, <code>3306</code>, <code>radio</code></td>
+</tr>
+<tr>
+<td>Usuário e senha do MySQL</td>
+<td>Conta do banco (recomendado: uma conta própria, não o <code>root</code>)</td>
+</tr>
+<tr>
+<td>Conectar por SSH</td>
+<td>Marque se o MySQL só aceita conexões locais. A Gestão TI entra por SSH e conecta em <code>127.0.0.1</code> (ou no IP do servidor) por dentro</td>
+</tr>
+<tr>
+<td>Servidor / porta / usuário / senha SSH</td>
+<td>Conta do <strong>Linux</strong> do servidor do banco</td>
+</tr>
+<tr>
+<td>Tabelas</td>
+<td><code>reg_users</code> e <code>radcheck</code> (só mude se o portal usar outros nomes)</td>
+</tr>
+<tr>
+<td><strong>Testar conexão</strong></td>
+<td>Mostra o total de visitantes e os formatos de senha encontrados</td>
+</tr>
+<tr>
+<td><strong>Conferir formato da senha</strong></td>
+<td>Informe login e senha <strong>atual</strong> de um cadastro conhecido; confere se o cálculo bate. Faça uma vez antes de usar</td>
+</tr>
+</tbody>
+</table>
+<p>Conta MySQL recomendada (o comando também aparece na tela):</p>
+<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="k">USER</span><span class="w"> </span><span class="s1">&#39;gestaoti&#39;</span><span class="o">@</span><span class="s1">&#39;localhost&#39;</span><span class="w"> </span><span class="n">IDENTIFIED</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="s1">&#39;SENHA-FORTE&#39;</span><span class="p">;</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">USER</span><span class="w"> </span><span class="s1">&#39;gestaoti&#39;</span><span class="o">@</span><span class="s1">&#39;127.0.0.1&#39;</span><span class="w"> </span><span class="n">IDENTIFIED</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="s1">&#39;SENHA-FORTE&#39;</span><span class="p">;</span>
+<span class="k">GRANT</span><span class="w"> </span><span class="k">SELECT</span><span class="p">,</span><span class="w"> </span><span class="k">UPDATE</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">radio</span><span class="p">.</span><span class="n">reg_users</span><span class="w"> </span><span class="k">TO</span><span class="w"> </span><span class="s1">&#39;gestaoti&#39;</span><span class="o">@</span><span class="s1">&#39;localhost&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;gestaoti&#39;</span><span class="o">@</span><span class="s1">&#39;127.0.0.1&#39;</span><span class="p">;</span>
+<span class="k">GRANT</span><span class="w"> </span><span class="k">SELECT</span><span class="p">,</span><span class="w"> </span><span class="k">UPDATE</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">radio</span><span class="p">.</span><span class="n">radcheck</span><span class="w">  </span><span class="k">TO</span><span class="w"> </span><span class="s1">&#39;gestaoti&#39;</span><span class="o">@</span><span class="s1">&#39;localhost&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;gestaoti&#39;</span><span class="o">@</span><span class="s1">&#39;127.0.0.1&#39;</span><span class="p">;</span>
+<span class="n">FLUSH</span><span class="w"> </span><span class="k">PRIVILEGES</span><span class="p">;</span>
+</code></pre></div>
+<blockquote>
+<p>O <code>root</code> do MySQL em Debian/Ubuntu costuma usar o plugin <code>auth_socket</code> e recusa senha (erro 1698).
+Nesse caso, use a conta acima.</p>
+</blockquote></section><section class="cartao" id="s10"><h2><span class="num">10</span>E-mails em lote</h2><h3>Conta de envio</h3>
+<ul>
+<li><strong>Todos os e-mails saem de <code>geral@santaluzia.mg.gov.br</code>.</strong> A conta é fixa no código: não muda pela tela nem pelo <code>.env</code>.</li>
+<li>O nome do remetente e o "Responder para" podem ser ajustados em cada disparo.</li>
+<li><strong>Modo de teste</strong> (Configurações → 1. Conta de envio): enquanto a <code>geral@</code> não estiver liberada no servidor de e-mail,
+  ligue <em>"Modo de teste: enviar por outra conta"</em> e informe um e-mail de teste. Com o modo ligado:</li>
+<li>todos os envios saem desse e-mail (disparos, e-mail de teste e senha de visitante);</li>
+<li>a tela de disparos mostra a etiqueta <strong>modo de teste</strong>;</li>
+<li>Configurações mostra um aviso no topo;</li>
+<li>ligar e desligar fica nos Logs.</li>
+</ul>
+<h3>Passo a passo do disparo</h3>
+<ol>
+<li><strong>Destinatários</strong>
+   - <strong>AD:</strong> usuários ativos com e-mail, com busca, filtro por OU e seleção individual ou de todos os filtrados
+     (precisa da conta de serviço <code>AD_BIND_USUARIO</code>).
+   - <strong>TXT:</strong> um e-mail por linha; aceita também <code>Nome;email</code>, <code>email;Nome</code> e <code>Nome &lt;email&gt;</code>.
+     Repetidos são removidos e linhas inválidas são mostradas.</li>
+<li><strong>Mensagem:</strong> editor com formatação, variáveis <code>{nome}</code> e <code>{email}</code>, e <strong>Enviar teste para mim</strong>.
+   - <strong>Imagens</strong> (botão, Ctrl+V ou arrastar): até <code>IMAGEM_MAX_MB</code> cada, embutidas no e-mail. Imagens coladas do Word são convertidas.
+   - <strong>Anexos:</strong> até <code>ANEXOS_MAX_MB</code> no total. Cada destinatário recebe uma cópia.</li>
+<li><strong>Blocos:</strong> quantidade ou tamanho dos blocos; envio <strong>automático</strong> (intervalo em minutos) ou <strong>manual</strong> (<em>Liberar próximo bloco</em>).</li>
+<li><strong>Revisar e enviar.</strong></li>
+</ol>
+<h3>Acompanhamento</h3>
+<ul>
+<li>Aba <strong>Disparos</strong>: progresso, pausar, retomar, cancelar, duplicar e relatório CSV com a situação de cada destinatário.</li>
+<li>O envio roda em segundo plano, com <code>ENVIO_PAUSA_MS</code> entre e-mails, e continua de onde parou se o servidor reiniciar.</li>
+<li>Se o servidor de e-mail cair, o disparo é pausado com o motivo na tela.</li>
+<li>Quem não é da TI vê só os próprios disparos; a TI vê todos os dos módulos que tem.</li>
+<li>Confira o limite do provedor (o Microsoft 365, por exemplo, aceita cerca de 10 mil destinatários por dia por caixa) e ajuste blocos e intervalo.</li>
+</ul></section><section class="cartao" id="s11"><h2><span class="num">11</span>Configurações</h2><p>A tela é dividida em cartões numerados, com uma barra de <strong>Salvar</strong> fixa no rodapé:</p>
+<table>
+<thead>
+<tr>
+<th>Cartão</th>
+<th>Conteúdo</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>1. Conta de envio</strong></td>
+<td><code>geral@</code> (fixa), modo de teste, forma de login no servidor (a própria conta, outra conta ou sem login) e senha</td>
+</tr>
+<tr>
+<td><strong>2. Servidor de e-mail</strong></td>
+<td>Tipo (servidor próprio, Microsoft 365, Google, teste) preenche os campos; servidor, porta, segurança (STARTTLS/SSL/nenhuma). Botões <strong>Testar conexão</strong> e <strong>Enviar e-mail de teste</strong></td>
+</tr>
+<tr>
+<td><strong>3. Limites</strong></td>
+<td>Pausa entre e-mails (em e-mails por minuto), tamanho dos anexos e das imagens, máximo de destinatários</td>
+</tr>
+<tr>
+<td><strong>4. Wi-Fi Visitante</strong></td>
+<td>Banco do RADIUS, SSH, tabelas, Testar e Conferir formato (ver seção 9)</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>O que é salvo na tela <strong>tem prioridade sobre o <code>.env</code></strong>. O <code>.env</code> vale enquanto nada tiver sido salvo.</li>
+<li>Senhas (SMTP, MySQL, SSH) ficam criptografadas com Fernet, com chave derivada de <code>SECRET_KEY</code>, e nunca voltam para a tela.
+  <strong>Se trocar a <code>SECRET_KEY</code>, digite essas senhas de novo.</strong></li>
+<li>Toda alteração e todo teste ficam nos Logs.</li>
+</ul></section><section class="cartao" id="s12"><h2><span class="num">12</span>Logs e auditoria</h2><ul>
+<li>Registra tudo, de todos os módulos e pessoas: logins (sucesso e falha), saídas, acessos negados, permissões e autorizações
+  para conceder, senhas redefinidas, desbloqueios, reativações (com SEI), pedidos e liberações do Wi-Fi, trocas de senha e
+  ativações de visitantes, disparos de e-mail (criação, anexos, imagens, listas lidas, envio, pausa, cancelamento, relatórios),
+  configurações alteradas e testadas, e exportações.</li>
+<li>Cada registro: data e hora, módulo, ação, autor (nome e login), IP e detalhe. <strong>Senhas nunca são gravadas.</strong></li>
+<li>O IP é preenchido automaticamente em cada registro (middleware + evento do SQLAlchemy).</li>
+<li>Filtros por texto, módulo, ação, pessoa e período; cards de resumo (ações hoje, falhas de login, acessos negados…) que abrem a lista filtrada.</li>
+<li><strong>Exportar CSV</strong> com os filtros aplicados (a exportação também é registrada).</li>
+</ul></section><section class="cartao" id="s13"><h2><span class="num">13</span>Active Directory</h2><h3>Conexão e failover</h3>
+<ul>
+<li>DCs em <code>AD_SERVIDORES</code> (<code>10.1.100.2,10.1.100.3</code>).</li>
+<li><code>AD_SEGURANCA=auto</code> tenta LDAPS (636) e depois StartTLS (389). Se os DCs não têm LDAPS, use <code>starttls</code> para não perder a primeira tentativa.</li>
+<li>O sistema memoriza qual DC e modo responderam e vai direto neles. O que falhou fica por último por 5 minutos.</li>
+<li>Se o DC cair <strong>no meio</strong> de uma consulta (lista, busca, login), ela é repetida no outro. No log: <code>DC 10.1.100.x fora do ar: usando o outro servidor do AD</code>.</li>
+</ul>
+<h3>Contas de serviço</h3>
+<table>
+<thead>
+<tr>
+<th>Variável</th>
+<th>Para quê</th>
+<th>Permissões no AD</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>AD_BIND_USUARIO</code> / <code>AD_BIND_SENHA</code></td>
+<td>Listar usuários (Gestão de Usuários, e-mails do AD, busca de pessoas)</td>
+<td>Leitura (usuário comum do domínio)</td>
+</tr>
+<tr>
+<td><code>AD_RESET_USUARIO</code> / <code>AD_RESET_SENHA</code></td>
+<td>Redefinir senha, desbloquear, reativar (opcional; vazio = usa a de cima)</td>
+<td>Delegação abaixo</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Delegação</strong> (Active Directory Users and Computers → botão direito na OU dos usuários → <strong>Delegate Control…</strong>):
+1. <strong>Reset user passwords and force password change at next logon</strong>.
+2. <strong>Create a custom task → User objects → Write lockoutTime</strong> (desbloquear).
+3. <strong>Create a custom task → User objects → Write userAccountControl</strong> (reativar).</p>
+<p><strong>Criptografia obrigatória para senha:</strong> o AD só aceita troca de senha por LDAPS ou StartTLS. Os DCs precisam de certificado
+(por exemplo, emitido pela CA do AD — AD CS). <code>AD_VALIDAR_CERTIFICADO=true</code> exige certificado confiável.</p>
+<h3>Teste pela linha de comando</h3>
+<div class="highlight"><pre><span></span><code>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>-it<span class="w"> </span>gestao-ti-api<span class="w"> </span>python<span class="w"> </span>-m<span class="w"> </span>app.ad<span class="w"> </span>seu.login
+</code></pre></div>
+<p>Pede a senha e mostra qual DC e modo funcionaram (<code>ldaps</code>, <code>starttls</code>, sem criptografia) e se o usuário seria aceito como TI.
+Cada execução conta como tentativa de login no AD: não repita com senha errada.</p>
+<h3>Atributos usados</h3>
+<table>
+<thead>
+<tr>
+<th>Atributo</th>
+<th>Uso</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sAMAccountName</code>, <code>displayName</code>, <code>mail</code>, <code>department</code>, <code>title</code></td>
+<td>Identificação e e-mails</td>
+</tr>
+<tr>
+<td><code>employeeID</code></td>
+<td>CPF</td>
+</tr>
+<tr>
+<td><code>initials</code></td>
+<td>Matrícula</td>
+</tr>
+<tr>
+<td><code>userAccountControl</code> (bit 2)</td>
+<td>Conta desativada / reativar</td>
+</tr>
+<tr>
+<td><code>lockoutTime</code></td>
+<td>Conta bloqueada / desbloquear</td>
+</tr>
+<tr>
+<td><code>pwdLastSet</code></td>
+<td>Forçar troca de senha no próximo logon (<code>0</code>)</td>
+</tr>
+<tr>
+<td><code>lastLogonTimestamp</code>, <code>whenCreated</code></td>
+<td>Dias sem uso (regra do SEI)</td>
+</tr>
+<tr>
+<td><code>adminCount</code></td>
+<td>Contas protegidas (não alteradas pela Gestão TI)</td>
+</tr>
+<tr>
+<td><code>memberOf</code> (regra <code>1.2.840.113556.1.4.1941</code>)</td>
+<td>Grupo da TI, incluindo grupos aninhados</td>
+</tr>
+</tbody>
+</table></section><section class="cartao" id="s14"><h2><span class="num">14</span>Variáveis do <code>.env</code></h2><p>Depois de editar: <code>cd /opt/gestao-ti &amp;&amp; sudo docker compose up -d</code>.</p>
+<h3>Essenciais</h3>
+<table>
+<thead>
+<tr>
+<th>Variável</th>
+<th>Padrão</th>
+<th>Descrição</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>DB_PASSWORD</code></td>
+<td>aleatória</td>
+<td>Senha do PostgreSQL da Gestão TI</td>
+</tr>
+<tr>
+<td><code>AGENT_KEY</code></td>
+<td>aleatória</td>
+<td>Chave do script das estações (na migração, é copiada do sistema antigo)</td>
+</tr>
+<tr>
+<td><code>SECRET_KEY</code></td>
+<td>aleatória</td>
+<td>Assina as sessões e deriva a chave de criptografia dos segredos</td>
+</tr>
+<tr>
+<td><code>ADMIN_USER</code> / <code>ADMIN_NOME</code> / <code>ADMIN_PASSWORD</code></td>
+<td><code>admin</code></td>
+<td>Usuário local de emergência (a senha só vale na criação)</td>
+</tr>
+<tr>
+<td><code>ADMIN_GERAL</code></td>
+<td>vazio</td>
+<td>Logins do AD que são adm geral, separados por vírgula</td>
+</tr>
+<tr>
+<td><code>PORTA</code></td>
+<td><code>8090</code></td>
+<td>Porta publicada no servidor</td>
+</tr>
+<tr>
+<td><code>PAINEL_URL</code></td>
+<td><code>http://IP:8090</code></td>
+<td>Endereço da Gestão TI (links dos avisos do Telegram/WhatsApp)</td>
+</tr>
+<tr>
+<td><code>AGENTE_URL</code></td>
+<td><code>http://wifiaprovacao.santaluzia.int:8090</code></td>
+<td>Endereço que o script das estações usa para consultar a API. Direto no servidor, <strong>sem</strong> proxy. Vazio = usa o <code>PAINEL_URL</code></td>
+</tr>
+<tr>
+<td><code>COOKIE_SEGURO</code></td>
+<td><code>false</code></td>
+<td><code>true</code> quando estiver atrás de HTTPS</td>
+</tr>
+<tr>
+<td><code>SESSAO_HORAS</code></td>
+<td><code>12</code></td>
+<td>Duração da sessão</td>
+</tr>
+<tr>
+<td><code>FORWARDED_ALLOW_IPS</code></td>
+<td><code>127.0.0.1</code></td>
+<td>IPs do proxy reverso confiável (para obter o IP real do usuário)</td>
+</tr>
+<tr>
+<td><code>HOSTS_PORTAL_WIFI</code></td>
+<td><code>wifiaprovacao,wifi-aprovacao</code></td>
+<td>Endereços antigos que abrem direto o portal do Wi-Fi</td>
+</tr>
+<tr>
+<td><code>LOGIN_LOCAL_HABILITADO</code></td>
+<td><code>true</code></td>
+<td>Permite o login do <code>admin</code> local</td>
+</tr>
+</tbody>
+</table>
+<h3>Active Directory</h3>
+<table>
+<thead>
+<tr>
+<th>Variável</th>
+<th>Padrão</th>
+<th>Descrição</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>AD_HABILITADO</code></td>
+<td><code>true</code></td>
+<td>Liga o login pelo AD</td>
+</tr>
+<tr>
+<td><code>AD_SERVIDORES</code></td>
+<td><code>10.1.100.2,10.1.100.3</code></td>
+<td>DCs, em ordem</td>
+</tr>
+<tr>
+<td><code>AD_DOMINIO</code> / <code>AD_BASE_DN</code></td>
+<td><code>santaluzia.int</code> / <code>DC=santaluzia,DC=int</code></td>
+<td>Domínio e base de busca</td>
+</tr>
+<tr>
+<td><code>AD_OU_PERMITIDA</code></td>
+<td>OU da Infra</td>
+<td>Quem é da equipe da TI (inclui sub-OUs)</td>
+</tr>
+<tr>
+<td><code>AD_GRUPO_PERMITIDO</code></td>
+<td>vazio</td>
+<td>DN de grupo da TI (alternativa ou complemento)</td>
+</tr>
+<tr>
+<td><code>AD_SEGURANCA</code></td>
+<td><code>auto</code></td>
+<td><code>auto</code>, <code>ldaps</code>, <code>starttls</code> ou <code>nenhuma</code></td>
+</tr>
+<tr>
+<td><code>AD_PERMITIR_SEM_TLS</code></td>
+<td><code>false</code></td>
+<td>Permite conexão sem criptografia (não serve para trocar senha)</td>
+</tr>
+<tr>
+<td><code>AD_VALIDAR_CERTIFICADO</code></td>
+<td><code>false</code></td>
+<td>Exige certificado confiável dos DCs</td>
+</tr>
+<tr>
+<td><code>AD_TIMEOUT</code></td>
+<td><code>5</code></td>
+<td>Tempo limite por DC (segundos)</td>
+</tr>
+<tr>
+<td><code>AD_BIND_USUARIO</code> / <code>AD_BIND_SENHA</code></td>
+<td>vazio</td>
+<td>Conta de serviço de leitura</td>
+</tr>
+<tr>
+<td><code>AD_RESET_USUARIO</code> / <code>AD_RESET_SENHA</code></td>
+<td>vazio</td>
+<td>Conta para senhas e reativação</td>
+</tr>
+<tr>
+<td><code>DIAS_REATIVACAO_SEI</code></td>
+<td><code>90</code></td>
+<td>Dias sem uso a partir dos quais a reativação exige SEI</td>
+</tr>
+</tbody>
+</table>
+<h3>Wi-Fi no computador</h3>
+<table>
+<thead>
+<tr>
+<th>Variável</th>
+<th>Padrão</th>
+<th>Descrição</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>HORAS_PERMITIDAS</code> / <code>DIAS_PERMITIDOS</code></td>
+<td><code>1,2,4,8</code> / <code>1,2,3,5,7</code></td>
+<td>Opções do portal</td>
+</tr>
+<tr>
+<td><code>PERSONALIZADO_USUARIO</code> / <code>HORAS_MAXIMAS_USUARIO</code></td>
+<td><code>true</code> / <code>720</code></td>
+<td>Tempo personalizado no portal e máximo</td>
+</tr>
+<tr>
+<td><code>HORAS_ADMIN</code> / <code>DIAS_ADMIN</code> / <code>HORAS_MAXIMAS</code></td>
+<td><code>1,2,4,8,12</code> / <code>1,2,3,7,15,30</code> / <code>720</code></td>
+<td>Opções e máximo da TI</td>
+</tr>
+<tr>
+<td><code>PERMITIR_INDETERMINADO</code></td>
+<td><code>true</code></td>
+<td>Liberação até a TI bloquear</td>
+</tr>
+<tr>
+<td><code>MAX_SOLICITACOES_POR_DIA</code></td>
+<td><code>5</code></td>
+<td>Pedidos por computador ou pessoa em 24 h</td>
+</tr>
+<tr>
+<td><code>DETECTAR_POR_DNS</code> / <code>DNS_SERVIDORES</code></td>
+<td><code>true</code> / DCs</td>
+<td>Identificação por DNS reverso</td>
+</tr>
+<tr>
+<td><code>MINUTOS_DETECCAO_COMPUTADOR</code></td>
+<td><code>30</code></td>
+<td>Validade do último IP informado pelo script</td>
+</tr>
+<tr>
+<td><code>TELEGRAM_BOT_TOKEN</code> / <code>TELEGRAM_CHAT_ID</code></td>
+<td>vazio</td>
+<td>Avisos de pedidos no Telegram</td>
+</tr>
+<tr>
+<td><code>EVOLUTION_URL</code> / <code>EVOLUTION_INSTANCE</code> / <code>EVOLUTION_APIKEY</code> / <code>WHATSAPP_NUMEROS</code></td>
+<td>vazio</td>
+<td>Avisos no WhatsApp</td>
+</tr>
+</tbody>
+</table>
+<h3>E-mail (podem ser sobrescritas pela tela)</h3>
+<table>
+<thead>
+<tr>
+<th>Variável</th>
+<th>Padrão</th>
+<th>Descrição</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>SMTP_HOST</code> / <code>SMTP_PORT</code></td>
+<td><code>mailpit</code> / <code>1025</code></td>
+<td>Servidor de e-mail</td>
+</tr>
+<tr>
+<td><code>SMTP_TLS</code> / <code>SMTP_SSL</code></td>
+<td><code>false</code> / <code>false</code></td>
+<td>STARTTLS (587) ou SSL (465)</td>
+</tr>
+<tr>
+<td><code>SMTP_USER</code> / <code>SMTP_PASSWORD</code></td>
+<td>vazio</td>
+<td>Login no servidor</td>
+</tr>
+<tr>
+<td><code>SMTP_FROM</code></td>
+<td><code>geral@...</code></td>
+<td>Informativo: a conta é fixa no código</td>
+</tr>
+<tr>
+<td><code>SMTP_FROM_NOME</code></td>
+<td>Prefeitura Municipal de Santa Luzia</td>
+<td>Nome do remetente</td>
+</tr>
+<tr>
+<td><code>ENVIO_PAUSA_MS</code></td>
+<td><code>200</code></td>
+<td>Pausa entre e-mails (200 ms ≈ 300/min)</td>
+</tr>
+<tr>
+<td><code>ANEXOS_MAX_MB</code> / <code>IMAGEM_MAX_MB</code> / <code>LISTA_MAX_EMAILS</code></td>
+<td><code>10</code> / <code>3</code> / <code>50000</code></td>
+<td>Limites dos disparos</td>
+</tr>
+<tr>
+<td><code>CACHE_AD_MINUTOS</code></td>
+<td><code>10</code></td>
+<td>Validade da lista de e-mails do AD em memória</td>
+</tr>
+</tbody>
+</table>
+<h3>Wi-Fi Visitante (podem ser sobrescritas pela tela, que é o recomendado)</h3>
+<p><code>RADIUS_DB_HOST</code> (<code>10.1.0.4</code>), <code>RADIUS_DB_PORTA</code> (<code>3306</code>), <code>RADIUS_DB_NOME</code> (<code>radio</code>), <code>RADIUS_DB_USUARIO</code>,
+<code>RADIUS_DB_SENHA</code>, <code>RADIUS_SSH</code> (<code>nao</code>/<code>sim</code>), <code>RADIUS_SSH_HOST</code>, <code>RADIUS_SSH_PORTA</code> (<code>22</code>), <code>RADIUS_SSH_USUARIO</code>,
+<code>RADIUS_SSH_SENHA</code>, <code>RADIUS_TABELA_USUARIOS</code> (<code>reg_users</code>), <code>RADIUS_TABELA_SENHAS</code> (<code>radcheck</code>).</p>
+<h3>Textos e marca</h3>
+<p><code>APP_NOME</code>, <code>APP_SUBTITULO</code>, <code>WIFI_NOME</code>, <code>WIFI_SUBTITULO</code>, <code>ORGAO_LINHA1</code>, <code>ORGAO_LINHA2</code>, <code>RODAPE</code>.
+Para o logo, coloque <code>logo.svg</code> ou <code>logo.png</code> em <code>/opt/gestao-ti/marca/</code> (não precisa reiniciar).</p></section><section class="cartao" id="s15"><h2><span class="num">15</span>Instalação local (testes)</h2><p>Requisitos: Docker com o plugin <code>docker compose</code>.</p>
+<div class="highlight"><pre><span></span><code>unzip<span class="w"> </span>gestao-ti.zip<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">cd</span><span class="w"> </span>gestao-ti
+chmod<span class="w"> </span>+x<span class="w"> </span>aplicar_gestao_ti.sh
+sudo<span class="w"> </span><span class="nv">MODO</span><span class="o">=</span><span class="nb">local</span><span class="w"> </span>./aplicar_gestao_ti.sh
+</code></pre></div>
+<ul>
+<li>Gestão TI: <code>http://localhost:8090</code>. Usuário <code>admin</code> e senha aparecem no fim e ficam em <code>/opt/gestao-ti/CREDENCIAIS-INICIAIS.txt</code>
+  (se o <code>.env</code> veio no pacote, vale a <code>ADMIN_PASSWORD</code> dele).</li>
+<li>Caixa de e-mail falsa (Mailpit): <code>http://localhost:8025</code>. Nada sai de verdade.</li>
+<li>O login pelo AD funciona se a máquina enxergar os DCs.</li>
+<li>Para o Wi-Fi Visitante, a máquina precisa alcançar <code>10.1.0.4</code> (porta 3306 ou 22, se usar SSH).</li>
+</ul></section><section class="cartao" id="s16"><h2><span class="num">16</span>Subida no servidor (troca do sistema antigo)</h2><p>Servidor: <strong>10.1.100.129</strong>. Sistema antigo em <code>/opt/pmsl-wifi-aprovacao</code> (porta 8090). A Gestão TI fica em <code>/opt/gestao-ti</code>.</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># na sua máquina</span>
+scp<span class="w"> </span>gestao-ti.zip<span class="w"> </span>suporte@10.1.100.129:~
+ssh<span class="w"> </span>suporte@10.1.100.129
+
+<span class="c1"># no servidor</span>
+sudo<span class="w"> </span>unzip<span class="w"> </span>-q<span class="w"> </span>~/gestao-ti.zip<span class="w"> </span>-d<span class="w"> </span>/opt
+<span class="nb">cd</span><span class="w"> </span>/opt/gestao-ti
+sudo<span class="w"> </span>chmod<span class="w"> </span><span class="m">600</span><span class="w"> </span>.env
+sudo<span class="w"> </span>chmod<span class="w"> </span>+x<span class="w"> </span>migrar_de_wifiaprovacao.sh<span class="w"> </span>aplicar_gestao_ti.sh
+sudo<span class="w"> </span><span class="nv">URL_GESTAO</span><span class="o">=</span>http://10.1.100.129:8090<span class="w"> </span>./migrar_de_wifiaprovacao.sh
+</code></pre></div>
+<h3>O que o script faz</h3>
+<ol>
+<li><strong>Backup</strong> do banco antigo em <code>/opt/backups/wifi_aprovacao-DATA.sql.gz</code>.</li>
+<li>Prepara o <code>.env</code> com a <strong>mesma <code>AGENT_KEY</code></strong> do sistema antigo (as estações continuam funcionando sem mudar nada),
+   copia <code>COOKIE_SEGURO</code>, <code>FORWARDED_ALLOW_IPS</code> e o logo, e gera <code>DB_PASSWORD</code> se estiver vazio.</li>
+<li>Sobe a Gestão TI na porta provisória <strong>18090</strong>, com o sistema antigo ainda atendendo.</li>
+<li>Para a API antiga e copia os dados: pedidos e liberações (mesmos números), histórico, computadores e administradores.
+   Copia só as colunas que existem nos dois bancos.</li>
+<li>A Gestão TI assume a porta <strong>8090</strong> (as estações ficam menos de 1 minuto sem resposta e mantêm o estado atual).</li>
+<li>Confere <code>/health</code> e o endpoint das estações e desliga o sistema antigo. O banco antigo fica guardado.</li>
+</ol>
+<h3>Opções do script</h3>
+<table>
+<thead>
+<tr>
+<th>Variável</th>
+<th>Padrão</th>
+<th>Descrição</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>URL_GESTAO</code></td>
+<td><code>https://gestaoti.santaluzia.mg.gov.br</code></td>
+<td>Endereço gravado em <code>PAINEL_URL</code></td>
+</tr>
+<tr>
+<td><code>ANTIGO_DIR</code></td>
+<td><code>/opt/pmsl-wifi-aprovacao</code></td>
+<td>Pasta do sistema antigo</td>
+</tr>
+<tr>
+<td><code>DESTINO</code></td>
+<td><code>/opt/gestao-ti</code></td>
+<td>Pasta da Gestão TI</td>
+</tr>
+<tr>
+<td><code>SO_DADOS=1</code></td>
+<td>—</td>
+<td>Só copia os dados (Gestão TI já no ar)</td>
+</tr>
+<tr>
+<td><code>FORCAR=1</code></td>
+<td>—</td>
+<td>Copia de novo mesmo se já tiver sido feita (sem duplicar)</td>
+</tr>
+</tbody>
+</table>
+<h3>Se der errado</h3>
+<ul>
+<li>Se algo falhar depois do passo 4, o script religa o sistema antigo sozinho.</li>
+<li>Manualmente: <code>cd /opt/gestao-ti &amp;&amp; sudo docker compose stop</code> e <code>cd /opt/pmsl-wifi-aprovacao &amp;&amp; sudo docker compose up -d</code>.</li>
+</ul>
+<h3>Conferência</h3>
+<div class="highlight"><pre><span></span><code>curl<span class="w"> </span>-s<span class="w"> </span>http://127.0.0.1:8090/health
+sudo<span class="w"> </span>docker<span class="w"> </span>ps<span class="w"> </span>--format<span class="w"> </span><span class="s1">&#39;{{.Names}} {{.Status}} {{.Ports}}&#39;</span>
+sudo<span class="w"> </span>docker<span class="w"> </span>logs<span class="w"> </span>--since<span class="w"> </span>10m<span class="w"> </span>gestao-ti-api<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-c<span class="w"> </span>agente/liberacao<span class="w">   </span><span class="c1"># maior que 0 = estações conversando</span>
+</code></pre></div>
+<h3>Depois da troca, no navegador</h3>
+<ol>
+<li>Entre com o <code>admin</code> local e coloque seu login em <code>ADMIN_GERAL</code> no <code>.env</code> (<code>sudo docker compose up -d</code> em seguida).</li>
+<li>Configurações → conta de envio e servidor de e-mail (ou modo de teste).</li>
+<li>Configurações → Wi-Fi Visitante → banco do RADIUS → Testar → Conferir formato.</li>
+<li>Gestão de Usuários → confira as permissões da equipe.</li>
+<li>Teste o reset de senha: <code>sudo docker exec -it gestao-ti-api python -m app.ad seu.login</code>.</li>
+</ol></section><section class="cartao" id="s17"><h2><span class="num">17</span>Atualização, backup e restauração</h2><h3>Atualizar para uma versão nova</h3>
+<div class="highlight"><pre><span></span><code>sudo<span class="w"> </span>unzip<span class="w"> </span>-oq<span class="w"> </span>~/gestao-ti.zip<span class="w"> </span>-d<span class="w"> </span>/tmp/gestao-ti-nova
+<span class="nb">cd</span><span class="w"> </span>/tmp/gestao-ti-nova/gestao-ti
+sudo<span class="w"> </span>./aplicar_gestao_ti.sh
+</code></pre></div>
+<p>O banco e o <code>.env</code> são mantidos; configurações novas são <strong>acrescentadas</strong> ao <code>.env</code>, sem alterar as existentes.
+O script regenera <code>saida-windows/</code>.</p>
+<h3>Backup</h3>
+<div class="highlight"><pre><span></span><code>sudo<span class="w"> </span>mkdir<span class="w"> </span>-p<span class="w"> </span>/opt/backups
+sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>gestao-ti-db<span class="w"> </span>pg_dump<span class="w"> </span>-U<span class="w"> </span>gestao<span class="w"> </span>gestao_ti<span class="w"> </span><span class="p">|</span><span class="w"> </span>gzip<span class="w"> </span>&gt;<span class="w"> </span>/opt/backups/gestao_ti-<span class="k">$(</span>date<span class="w"> </span>+%F<span class="k">)</span>.sql.gz
+sudo<span class="w"> </span>cp<span class="w"> </span>/opt/gestao-ti/.env<span class="w"> </span>/opt/backups/gestao-ti.env-<span class="k">$(</span>date<span class="w"> </span>+%F<span class="k">)</span>
+</code></pre></div>
+<p>Agendar todo dia às 2h (<code>sudo crontab -e</code>):</p>
+<div class="highlight"><pre><span></span><code>0 2 * * * docker exec gestao-ti-db pg_dump -U gestao gestao_ti | gzip &gt; /opt/backups/gestao_ti-$(date +\%F).sql.gz
+</code></pre></div>
+<h3>Restaurar</h3>
+<div class="highlight"><pre><span></span><code><span class="nb">cd</span><span class="w"> </span>/opt/gestao-ti
+sudo<span class="w"> </span>docker<span class="w"> </span>compose<span class="w"> </span>stop<span class="w"> </span>api
+gunzip<span class="w"> </span>-c<span class="w"> </span>/opt/backups/gestao_ti-AAAA-MM-DD.sql.gz<span class="w"> </span><span class="p">|</span><span class="w"> </span>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>-i<span class="w"> </span>gestao-ti-db<span class="w"> </span>psql<span class="w"> </span>-U<span class="w"> </span>gestao<span class="w"> </span>-d<span class="w"> </span>gestao_ti
+sudo<span class="w"> </span>docker<span class="w"> </span>compose<span class="w"> </span>start<span class="w"> </span>api
+</code></pre></div>
+<p>(Para restaurar num banco limpo, recrie antes: <code>DROP SCHEMA public CASCADE; CREATE SCHEMA public;</code>.)</p></section><section class="cartao" id="s18"><h2><span class="num">18</span>Endereço gestaoti e proxy reverso</h2><ol>
+<li>Pedir à equipe de redes o DNS <code>gestaoti.santaluzia.mg.gov.br</code> e o proxy reverso para <code>10.1.100.129:8090</code>.</li>
+<li>Quando abrir pelo endereço novo:
+   - <code>PAINEL_URL=https://gestaoti.santaluzia.mg.gov.br</code> no <code>.env</code>;
+   - <code>COOKIE_SEGURO=true</code> (se for HTTPS);
+   - <code>FORWARDED_ALLOW_IPS=IP_DO_PROXY</code>;
+   - <code>sudo ./aplicar_gestao_ti.sh</code> (regenera o script da GPO com o endereço novo).</li>
+<li>Só então atualizar o script no NETLOGON e o atalho da GPO (seção 19).</li>
+<li>O endereço antigo (<code>wifiaprovacao...</code>) pode continuar apontando para o mesmo servidor: quem abrir por ele cai no portal do Wi-Fi,
+   e o atalho antigo (<code>/?h=COMPUTADOR</code>) continua funcionando.</li>
+</ol>
+<p>O proxy precisa repassar os cabeçalhos <code>X-Forwarded-For</code> e <code>X-Forwarded-Proto</code> e aceitar uploads de pelo menos 15 MB (anexos).</p></section><section class="cartao" id="s19"><h2><span class="num">19</span>Estações Windows (GPO)</h2><h3>Script no NETLOGON</h3>
+<p>O <code>aplicar_gestao_ti.sh</code> (e os scripts de atualização) geram <code>/opt/gestao-ti/saida-windows/wlan-filter.ps1</code> já com o endereço
+da API (<code>AGENTE_URL</code>, direto no servidor: <code>http://wifiaprovacao.santaluzia.int:8090</code>) e a <code>AGENT_KEY</code>. As estações copiam o
+script do NETLOGON para <code>C:\ProgramData\PMSL\</code> pela GPO.</p>
+<ol>
+<li><strong>Testar numa máquina antes</strong>, pela pasta <code>teste</code>:
+   <div class="highlight"><pre><span></span><code>sudo<span class="w"> </span>apt<span class="w"> </span>install<span class="w"> </span>-y<span class="w"> </span>smbclient
+<span class="nb">cd</span><span class="w"> </span>/opt/gestao-ti/saida-windows
+sudo<span class="w"> </span>smbclient<span class="w"> </span>//10.1.100.2/NETLOGON<span class="w"> </span>-U<span class="w"> </span><span class="s1">&#39;SANTA-LUZIA\seu.usuario&#39;</span><span class="w"> </span>-c<span class="w"> </span><span class="s1">&#39;cd PMSL-WiFi; mkdir teste; cd teste; put wlan-filter.ps1; ls&#39;</span>
+</code></pre></div>
+   Na estação, como administrador:
+   <div class="highlight"><pre><span></span><code><span class="nb">Copy-Item</span> <span class="p">\\</span><span class="n">santaluzia</span><span class="p">.</span><span class="n">int</span><span class="p">\</span><span class="n">NETLOGON</span><span class="p">\</span><span class="n">PMSL-WiFi</span><span class="p">\</span><span class="n">teste</span><span class="p">\</span><span class="n">wlan-filter</span><span class="p">.</span><span class="n">ps1</span> <span class="n">C</span><span class="p">:\</span><span class="n">ProgramData</span><span class="p">\</span><span class="n">PMSL</span><span class="p">\</span><span class="n">wlan-filter</span><span class="p">.</span><span class="n">ps1</span> <span class="n">-Force</span>
+<span class="n">powershell</span><span class="p">.</span><span class="n">exe</span> <span class="n">-NoProfile</span> <span class="n">-ExecutionPolicy</span> <span class="n">Bypass</span> <span class="o">-File</span> <span class="n">C</span><span class="p">:\</span><span class="n">ProgramData</span><span class="p">\</span><span class="n">PMSL</span><span class="p">\</span><span class="n">wlan-filter</span><span class="p">.</span><span class="n">ps1</span><span class="p">;</span> <span class="s2">&quot;Codigo de saida: $LASTEXITCODE&quot;</span>
+</code></pre></div>
+   Sem erro em vermelho e com código 0, está bom.</li>
+<li><strong>Distribuir para todas</strong>, guardando o atual como <code>.anterior</code> (o <code>del</code> evita que um <code>.anterior</code> antigo impeça o <code>rename</code>):
+   <div class="highlight"><pre><span></span><code><span class="nb">cd</span><span class="w"> </span>/opt/gestao-ti/saida-windows
+sudo<span class="w"> </span>smbclient<span class="w"> </span>//10.1.100.2/NETLOGON<span class="w"> </span>-U<span class="w"> </span><span class="s1">&#39;SANTA-LUZIA\seu.usuario&#39;</span><span class="w"> </span>-c<span class="w"> </span><span class="s1">&#39;cd PMSL-WiFi; del wlan-filter.ps1.anterior; rename wlan-filter.ps1 wlan-filter.ps1.anterior; put wlan-filter.ps1; ls&#39;</span>
+</code></pre></div></li>
+<li><strong>Conferir numa estação</strong>: <code>gpupdate /force</code> e
+   <code>Select-String -Path C:\ProgramData\PMSL\wlan-filter.ps1 -Pattern 'Executar-Comandos' -Quiet</code> deve responder <code>True</code>.</li>
+<li><strong>Voltar atrás</strong>: <code>... -c 'cd PMSL-WiFi; del wlan-filter.ps1; rename wlan-filter.ps1.anterior wlan-filter.ps1; ls'</code>.</li>
+</ol>
+<h3>Tarefa agendada na GPO</h3>
+<p>No GPO <strong>WiFi - Prioridade PMSL-WIRELESS</strong> → <strong>Computer Configuration → Preferences → Control Panel Settings → Scheduled Tasks</strong>
+→ <strong>PMSL - Filtro WiFi</strong>:</p>
+<table>
+<thead>
+<tr>
+<th>Aba</th>
+<th>Configuração</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>General</strong></td>
+<td>Action <strong>Replace</strong>; usuário <strong>NT AUTHORITY\System</strong>; <strong>Run with highest privileges</strong></td>
+</tr>
+<tr>
+<td><strong>Triggers</strong></td>
+<td>Os 5 <strong>Daily</strong> da seção 8 (00:00 a 00:04, a cada 5 minutos, Indefinitely), <strong>At startup</strong> e <strong>On an event</strong></td>
+</tr>
+<tr>
+<td><strong>Actions</strong></td>
+<td>Program: <code>powershell.exe</code>; Arguments: <code>-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "C:\ProgramData\PMSL\wlan-filter.ps1"</code> (com a aspa no final)</td>
+</tr>
+<tr>
+<td><strong>Conditions</strong></td>
+<td><strong>Desmarcados</strong>: "Start the task only if the computer is on AC power" e "Stop if the computer switches to battery power"</td>
+</tr>
+<tr>
+<td><strong>Settings</strong></td>
+<td>"Run task as soon as possible after a scheduled start is missed"; "Stop the task if it runs longer than" 10 minutes; "Do not start a new instance"</td>
+</tr>
+</tbody>
+</table>
+<p>Clique em <strong>OK</strong> na janela <strong>PMSL - Filtro WiFi Properties</strong> para gravar; fechar pelo <strong>X</strong> ou <strong>Cancel</strong> perde as alterações.</p>
+<p>Conferir o que ficou gravado nos dois DCs (use o <strong>nome</strong> do DC; pelo IP o Windows recusa o acesso ao SYSVOL):
+<div class="highlight"><pre><span></span><code><span class="k">foreach</span> <span class="p">(</span><span class="nv">$dc</span> <span class="k">in</span> <span class="s1">&#39;PMSL-AD01&#39;</span><span class="p">,</span><span class="s1">&#39;PMSL-AD02&#39;</span><span class="p">)</span> <span class="p">{</span> <span class="s2">&quot;== $dc&quot;</span><span class="p">;</span> <span class="nv">$x</span> <span class="p">=</span> <span class="s2">&quot;\\$dc.santaluzia.int\SYSVOL\santaluzia.int\Policies\{E8D3B83E-9342-4AD8-8953-FC6D3C45AE62}\Machine\Preferences\ScheduledTasks\ScheduledTasks.xml&quot;</span><span class="p">;</span> <span class="p">(</span><span class="nb">Get-Item</span> <span class="nv">$x</span><span class="p">).</span><span class="n">LastWriteTime</span><span class="p">;</span> <span class="p">(</span><span class="no">[regex]</span><span class="p">::</span><span class="n">Matches</span><span class="p">((</span><span class="nb">Get-Content</span> <span class="nv">$x</span> <span class="n">-Raw</span><span class="p">),</span> <span class="s1">&#39;&lt;StartBoundary&gt;([^&lt;]+)&lt;/StartBoundary&gt;&#39;</span><span class="p">)</span> <span class="p">|</span> <span class="k">ForEach</span><span class="n">-Object</span> <span class="p">{</span> <span class="nv">$_</span><span class="p">.</span><span class="n">Groups</span><span class="p">[</span><span class="n">1</span><span class="p">].</span><span class="n">Value</span> <span class="p">})</span> <span class="n">-join</span> <span class="s1">&#39; | &#39;</span><span class="p">;</span> <span class="p">(</span><span class="no">[regex]</span><span class="p">::</span><span class="n">Matches</span><span class="p">((</span><span class="nb">Get-Content</span> <span class="nv">$x</span> <span class="n">-Raw</span><span class="p">),</span> <span class="s1">&#39;&lt;Interval&gt;([^&lt;]+)&lt;/Interval&gt;&#39;</span><span class="p">)</span> <span class="p">|</span> <span class="k">ForEach</span><span class="n">-Object</span> <span class="p">{</span> <span class="nv">$_</span><span class="p">.</span><span class="n">Groups</span><span class="p">[</span><span class="n">1</span><span class="p">].</span><span class="n">Value</span> <span class="p">})</span> <span class="n">-join</span> <span class="s1">&#39; | &#39;</span> <span class="p">}</span>
+</code></pre></div></p>
+<p>Conferir numa estação:
+<div class="highlight"><pre><span></span><code><span class="n">gpupdate</span> <span class="p">/</span><span class="n">force</span>
+<span class="p">(</span><span class="nb">Get-ScheduledTask</span> <span class="n">-TaskName</span> <span class="s1">&#39;PMSL - Filtro WiFi&#39;</span><span class="p">).</span><span class="n">Triggers</span> <span class="p">|</span> <span class="nb">Select-Object</span> <span class="n">StartBoundary</span><span class="p">,</span> <span class="p">@{</span><span class="n">n</span><span class="p">=</span><span class="s1">&#39;Repete&#39;</span><span class="p">;</span><span class="n">e</span><span class="p">={</span><span class="nv">$_</span><span class="p">.</span><span class="n">Repetition</span><span class="p">.</span><span class="n">Interval</span><span class="p">}}</span>
+<span class="nb">Get-ScheduledTaskInfo</span> <span class="n">-TaskName</span> <span class="s1">&#39;PMSL - Filtro WiFi&#39;</span> <span class="p">|</span> <span class="nb">Select-Object</span> <span class="n">LastRunTime</span><span class="p">,</span> <span class="n">LastTaskResult</span><span class="p">,</span> <span class="n">NextRunTime</span>
+</code></pre></div>
+E no servidor, cada máquina deve aparecer com 4 ou 5 consultas em 5 minutos:
+<div class="highlight"><pre><span></span><code>sudo<span class="w"> </span>docker<span class="w"> </span>logs<span class="w"> </span>--since<span class="w"> </span>5m<span class="w"> </span>gestao-ti-api<span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-o<span class="w"> </span><span class="s1">&#39;hostname=[^&amp;]*&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>sort<span class="w"> </span><span class="p">|</span><span class="w"> </span>uniq<span class="w"> </span>-c<span class="w"> </span><span class="p">|</span><span class="w"> </span>sort<span class="w"> </span>-rn<span class="w"> </span><span class="p">|</span><span class="w"> </span>head
+</code></pre></div></p>
+<h3>Atalho do portal</h3>
+<ol>
+<li>No GPO <strong>WiFi - Prioridade PMSL-WIRELESS</strong>, atalho do portal em
+   <strong>Computer Configuration → Preferences → Windows Settings → Shortcuts → New → Shortcut</strong>:
+   - <strong>Action:</strong> Replace
+   - <strong>Name:</strong> <code>Solicitar Acesso à Rede Sem Fio</code>
+   - <strong>Target type:</strong> URL
+   - <strong>Location:</strong> All Users Start Menu (e/ou All Users Desktop)
+   - <strong>Target URL:</strong> <code>https://gestaoti.santaluzia.mg.gov.br/wifi?h=%ComputerName%</code>
+   - Aba <strong>Common:</strong> marque <strong>Remove this item when it is no longer applied</strong></li>
+</ol>
+<p>Enquanto a URL nova não estiver no ar, <strong>não</strong> troque o script: o atual (mesma <code>AGENT_KEY</code>, porta 8090) continua funcionando.</p></section><section class="cartao" id="s20"><h2><span class="num">20</span>Endereços das telas e da API</h2><h3>Telas</h3>
+<table>
+<thead>
+<tr>
+<th>Endereço</th>
+<th>Tela</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>/</code></td>
+<td>Login e início com os módulos (hosts antigos e <code>?h=</code> vão para <code>/wifi</code>)</td>
+</tr>
+<tr>
+<td><code>/wifi</code></td>
+<td>Portal público do Wi-Fi</td>
+</tr>
+<tr>
+<td><code>/m/rede-sem-fio</code>, <code>/m/wifi</code>, <code>/m/wifi-visitante</code></td>
+<td>Rede Sem Fio</td>
+</tr>
+<tr>
+<td><code>/m/email?origem=ad</code>, <code>/m/email?origem=lista</code></td>
+<td>E-mails em lote</td>
+</tr>
+<tr>
+<td><code>/m/usuarios</code>, <code>/m/configuracoes</code>, <code>/m/logs</code></td>
+<td>Administração</td>
+</tr>
+<tr>
+<td><code>/m/senhas</code>, <code>/admin</code></td>
+<td>Redirecionamentos de compatibilidade</td>
+</tr>
+<tr>
+<td><code>/health</code></td>
+<td>Situação da aplicação</td>
+</tr>
+</tbody>
+</table>
+<h3>API (todas exigem sessão, exceto portal, agente e health)</h3>
+<table>
+<thead>
+<tr>
+<th>Prefixo</th>
+<th>Rotas principais</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>/api/auth</code></td>
+<td><code>POST login</code>, <code>POST logout</code>, <code>GET eu</code> (usuário, módulos, <code>admin_geral</code>, <code>pode_conceder</code>, <code>aguardando</code>)</td>
+</tr>
+<tr>
+<td><code>/api/portal</code></td>
+<td><code>login</code>, <code>logout</code>, <code>estado</code>, <code>solicitacoes</code>, <code>solicitacoes/{id}/cancelar</code></td>
+</tr>
+<tr>
+<td><code>/api/agente/liberacao</code></td>
+<td>Consulta das estações (cabeçalho <code>X-Agent-Key</code>). Responde <code>liberado</code> e, a partir desta versão, <code>comandos</code> (pedidos de logoff)</td>
+</tr>
+<tr>
+<td><code>/api/agente/comando/{id}/resultado</code></td>
+<td>O script informa o resultado do pedido (<code>hostname</code>, <code>resultado</code> = ok / nao_logado / erro, <code>detalhe</code>)</td>
+</tr>
+<tr>
+<td><code>/api/admin</code></td>
+<td><code>solicitacoes</code> (+ <code>aprovar</code>, <code>negar</code>, <code>bloquear</code>, <code>alterar-prazo</code>), <code>liberacoes</code>, <code>computadores</code>, <code>pessoas</code>, <code>eventos</code>, <code>eventos.csv</code></td>
+</tr>
+<tr>
+<td><code>/api/usuarios</code></td>
+<td><code>GET /</code> (locais), <code>diretorio</code> (AD em cache: <code>q</code>, <code>situacao</code>, <code>filtro</code>, <code>limite</code>, <code>atualizar</code>), <code>PUT ad/{login}/modulos</code>, <code>buscar-ad</code>, <code>POST /</code>, <code>POST local</code>, <code>PATCH {id}</code>, <code>POST {login}/finalizar-sessao</code> (<code>gestao</code>, <code>computadores</code>, <code>avisar</code>, <code>motivo</code> opcional), <code>eventos</code></td>
+</tr>
+<tr>
+<td><code>/api/senhas</code></td>
+<td><code>buscar</code>, <code>conta/{login}</code>, <code>redefinir</code>, <code>desbloquear</code>, <code>reativar</code> (<code>ciente_sei</code>, <code>processo_sei</code>), <code>historico</code></td>
+</tr>
+<tr>
+<td><code>/api/visitante</code></td>
+<td><code>visitantes</code> (<code>q</code> ≥ 3 caracteres), <code>totais</code>, <code>visitantes/{id}/trocar-senha</code>, <code>visitantes/{id}/ativo</code>, <code>historico</code></td>
+</tr>
+<tr>
+<td><code>/api/email</code></td>
+<td><code>config</code>, <code>ad/usuarios</code>, <code>lista/ler</code>, <code>imagens</code>, <code>remetentes</code>, <code>teste</code>, <code>disparos</code> (+ <code>anexos</code>, <code>iniciar</code>, <code>proximo-bloco</code>, <code>pausar</code>, <code>retomar</code>, <code>cancelar</code>, <code>destinatarios</code>, <code>relatorio.csv</code>)</td>
+</tr>
+<tr>
+<td><code>/api/configuracoes</code></td>
+<td><code>email</code> (GET/PUT), <code>email/testar</code>, <code>email/enviar-teste</code>, <code>radius</code> (GET/PUT), <code>radius/testar</code>, <code>radius/conferir</code></td>
+</tr>
+<tr>
+<td><code>/api/logs</code></td>
+<td><code>GET /</code> (filtros e paginação), <code>opcoes</code>, <code>resumo</code>, <code>exportar.csv</code></td>
+</tr>
+</tbody>
+</table>
+<p>A documentação interativa do FastAPI fica desativada em produção; as rotas acima são a referência.</p></section><section class="cartao" id="s21"><h2><span class="num">21</span>Banco de dados</h2><p>PostgreSQL <code>gestao_ti</code>, usuário <code>gestao</code>. As tabelas são criadas e as colunas novas acrescentadas automaticamente na subida.</p>
+<table>
+<thead>
+<tr>
+<th>Tabela</th>
+<th>Conteúdo</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>administradores</code></td>
+<td>Usuários da Gestão TI (locais e do AD): origem, ativo, <code>pode_conceder</code>, hash da senha (só locais)</td>
+</tr>
+<tr>
+<td><code>permissoes</code></td>
+<td>Módulos de cada usuário</td>
+</tr>
+<tr>
+<td><code>solicitacoes</code></td>
+<td>Pedidos e liberações do Wi-Fi no computador, inclusive quem estava logado ao pedir (<code>usuario_no_computador</code>) e na liberação (<code>usuario_na_liberacao</code>, <code>usuario_na_liberacao_nome</code>)</td>
+</tr>
+<tr>
+<td><code>computadores</code></td>
+<td>Computadores informados pelo script da GPO (IP, usuário logado, última vez)</td>
+</tr>
+<tr>
+<td><code>eventos</code></td>
+<td>Registro de todas as ações (base do módulo Logs)</td>
+</tr>
+<tr>
+<td><code>disparos</code>, <code>disparo_destinatarios</code>, <code>disparo_anexos</code></td>
+<td>E-mails em lote</td>
+</tr>
+<tr>
+<td><code>configuracoes</code></td>
+<td>Ajustes salvos pela tela (segredos criptografados)</td>
+</tr>
+<tr>
+<td><code>sessoes_encerradas</code></td>
+<td>Sessões finalizadas pela TI: login, quando e por quem (logins anteriores deixam de valer)</td>
+</tr>
+<tr>
+<td><code>comandos_estacao</code></td>
+<td>Pedidos para as estações (logoff): computador, usuário, aviso, quem pediu, entrega, execução e resultado</td>
+</tr>
+<tr>
+<td><code>redes_visitante</code></td>
+<td>Legado (não usada)</td>
+</tr>
+</tbody>
+</table></section><section class="cartao" id="s22"><h2><span class="num">22</span>Segurança</h2><ul>
+<li><strong>Senhas:</strong> nunca gravadas nos logs. Locais usam bcrypt; segredos de integração usam Fernet (chave derivada de <code>SECRET_KEY</code>).</li>
+<li><strong>Sessão:</strong> cookie assinado, <code>HttpOnly</code>, <code>SameSite</code>; <code>Secure</code> quando <code>COOKIE_SEGURO=true</code>.</li>
+<li><strong>Login:</strong> bloqueio de 10 minutos após 5 senhas erradas no mesmo IP; todas as tentativas registradas.</li>
+<li><strong>Ninguém se libera sozinho no Wi-Fi:</strong> o portal só cria o pedido; a liberação exige decisão da TI.</li>
+<li><strong><code>AGENT_KEY</code>:</strong> fica no script do NETLOGON (legível pelo domínio). Com ela só se consulta se um computador está liberado e
+  se informa nome e IP; não libera nada.</li>
+<li><strong>IP real:</strong> vem da conexão; cabeçalhos de proxy só são aceitos de <code>FORWARDED_ALLOW_IPS</code>.</li>
+<li><strong>AD:</strong> troca de senha só por conexão criptografada; contas de administradores do domínio (AdminSDHolder) não são alteradas
+  pela Gestão TI, por decisão de segurança.</li>
+<li><strong>Logoff no Windows:</strong> o servidor não tem acesso administrativo às estações; quem executa é o script da GPO, que busca o
+  pedido na API com a <code>AGENT_KEY</code>.</li>
+<li><strong>RADIUS:</strong> use uma conta MySQL com <code>SELECT, UPDATE</code> só nas duas tabelas.</li>
+<li><strong><code>.env</code>:</strong> permissão <code>600</code>, fora de qualquer repositório. Se alguma chave foi compartilhada (chat, e-mail), gere outra:
+  <code>AGENT_KEY</code> (exige atualizar o script do NETLOGON), <code>SECRET_KEY</code> (derruba as sessões e exige redigitar as senhas da tela de
+  Configurações) e a senha do <code>admin</code>.</li>
+<li><strong>Container:</strong> a API roda como usuário sem privilégios (<code>appuser</code>, UID 10001).</li>
+</ul></section><section class="cartao" id="s23"><h2><span class="num">23</span>Solução de problemas</h2><table>
+<thead>
+<tr>
+<th>Sintoma</th>
+<th>Causa provável</th>
+<th>O que fazer</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Login do AD falha para todos</td>
+<td>DCs inacessíveis ou certificado</td>
+<td><code>docker exec -it gestao-ti-api python -m app.ad seu.login</code>; ajuste <code>AD_SEGURANCA</code></td>
+</tr>
+<tr>
+<td>"Redefinir senha" diz que precisa de conexão criptografada</td>
+<td>DCs sem LDAPS/StartTLS</td>
+<td>Instalar certificado nos DCs (AD CS)</td>
+</tr>
+<tr>
+<td>"Acesso negado" ao redefinir/reativar</td>
+<td>Falta delegação</td>
+<td>Ver seção 13 (Delegate Control)</td>
+</tr>
+<tr>
+<td>Lista do AD vazia</td>
+<td><code>AD_BIND_USUARIO</code> vazio ou senha errada</td>
+<td>Preencher no <code>.env</code> e <code>docker compose up -d</code></td>
+</tr>
+<tr>
+<td>Wi-Fi Visitante: erro 1698</td>
+<td><code>root</code> do MySQL usa <code>auth_socket</code></td>
+<td>Criar a conta <code>gestaoti</code> (seção 9)</td>
+</tr>
+<tr>
+<td>Wi-Fi Visitante: erro 1045/1044</td>
+<td>Usuário ou senha do MySQL, ou sem permissão no banco</td>
+<td>Conferir conta e <code>GRANT</code></td>
+</tr>
+<tr>
+<td>Wi-Fi Visitante: 2003/2013 ou timeout</td>
+<td>Porta 3306 fechada ou busca muito ampla</td>
+<td>Ativar SSH; refinar a busca; considerar os índices opcionais</td>
+</tr>
+<tr>
+<td>E-mail de teste não chega</td>
+<td>SMTP ou <code>geral@</code> não liberada</td>
+<td>Testar conexão; usar o modo de teste</td>
+</tr>
+<tr>
+<td>Disparo pausado sozinho</td>
+<td>Servidor de e-mail caiu ou recusou</td>
+<td>Ver o motivo na aba Disparos e retomar</td>
+</tr>
+<tr>
+<td>Estações não consultam a API</td>
+<td><code>AGENT_KEY</code> diferente ou porta/URL errada</td>
+<td><code>docker logs gestao-ti-api \| grep agente/liberacao</code>; comparar a chave do <code>.env</code> com a do script</td>
+</tr>
+<tr>
+<td>Senhas da tela "sumiram"</td>
+<td><code>SECRET_KEY</code> foi trocada</td>
+<td>Digitar de novo em Configurações</td>
+</tr>
+<tr>
+<td>IP de todos aparece como o do proxy</td>
+<td><code>FORWARDED_ALLOW_IPS</code> sem o IP do proxy</td>
+<td>Colocar o IP do proxy (hoje <code>10.1.100.122</code>) e <code>docker compose up -d</code></td>
+</tr>
+<tr>
+<td>Nome do computador em branco ou errado no portal</td>
+<td>Máquina fora do domínio, script sem rodar, ou acesso pelo proxy sem <code>FORWARDED_ALLOW_IPS</code></td>
+<td>O portal só identifica estações Windows com o script; conferir <code>computadores</code> (IP e <code>visto_em</code> recente)</td>
+</tr>
+<tr>
+<td>Finalizar sessão no Windows não faz logoff</td>
+<td>Estação com o script antigo, tarefa sem rodar, ou pedido para a máquina errada</td>
+<td><code>select ... from comandos_estacao</code>: <code>entregue_em</code> vazio = a máquina não consultou; entregue sem <code>executado_em</code> = script antigo; <code>nao_logado</code> = usuário não estava na máquina</td>
+</tr>
+<tr>
+<td>Tarefa "PMSL - Filtro WiFi" nunca roda (<code>LastRunTime</code> 30/11/1999, <code>LastTaskResult</code> 267011)</td>
+<td>Agendador de Tarefas daquela máquina não dispara a tarefa criada pela GPO</td>
+<td>Reiniciar a máquina; se continuar, <code>sfc /scannow</code> e <code>DISM /Online /Cleanup-Image /RestoreHealth</code></td>
+</tr>
+<tr>
+<td>Mudança na tarefa da GPO não chega às estações</td>
+<td>Edição não gravada (janela fechada sem OK) ou estações ainda sem atualizar a política</td>
+<td>Conferir o XML nos dois DCs (seção 19); <code>gpupdate /force</code> na estação; as demais atualizam em até ~2 horas</td>
+</tr>
+<tr>
+<td><code>Get-ChildItem \\10.1.100.2\SYSVOL...</code> não acha nada</td>
+<td>O Windows exige o <strong>nome</strong> do DC para o SYSVOL</td>
+<td>Usar <code>\\PMSL-AD01.santaluzia.int\SYSVOL\...</code></td>
+</tr>
+</tbody>
+</table></section><section class="cartao" id="s24"><h2><span class="num">24</span>Comandos úteis</h2><div class="highlight"><pre><span></span><code><span class="nb">cd</span><span class="w"> </span>/opt/gestao-ti
+sudo<span class="w"> </span>docker<span class="w"> </span>compose<span class="w"> </span>ps<span class="w">                          </span><span class="c1"># situação</span>
+sudo<span class="w"> </span>docker<span class="w"> </span>compose<span class="w"> </span>logs<span class="w"> </span>-f<span class="w"> </span>api<span class="w">                 </span><span class="c1"># logs em tempo real</span>
+sudo<span class="w"> </span>docker<span class="w"> </span>compose<span class="w"> </span>up<span class="w"> </span>-d<span class="w">                       </span><span class="c1"># aplicar mudanças do .env</span>
+sudo<span class="w"> </span>docker<span class="w"> </span>compose<span class="w"> </span>restart<span class="w"> </span>api<span class="w">                 </span><span class="c1"># reiniciar a aplicação</span>
+sudo<span class="w"> </span>docker<span class="w"> </span>compose<span class="w"> </span>--profile<span class="w"> </span>teste<span class="w"> </span>up<span class="w"> </span>-d<span class="w">       </span><span class="c1"># subir com o Mailpit (testes)</span>
+sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>-it<span class="w"> </span>gestao-ti-api<span class="w"> </span>python<span class="w"> </span>-m<span class="w"> </span>app.ad<span class="w"> </span>seu.login<span class="w">     </span><span class="c1"># testar o AD</span>
+sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>-it<span class="w"> </span>gestao-ti-db<span class="w"> </span>psql<span class="w"> </span>-U<span class="w"> </span>gestao<span class="w"> </span>gestao_ti<span class="w">         </span><span class="c1"># console do banco</span>
+</code></pre></div>
+<p><strong>Senha do <code>admin</code> local esquecida:</strong></p>
+<div class="highlight"><pre><span></span><code>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>-it<span class="w"> </span>gestao-ti-api<span class="w"> </span>python<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;from app.auth import gerar_hash; from app.db import *; s=SessionLocal(); a=s.query(Administrador).filter_by(usuario=&#39;admin&#39;).one(); a.senha_hash=gerar_hash(&#39;NovaSenha123&#39;); a.ativo=True; s.commit()&quot;</span>
+</code></pre></div></section></main>
+</div>
+
+<footer class="rodape">Sistema e documentação: Bernardo Mozelli de Medeiros · Secretaria de Planejamento, Ciência, Tecnologia e Inovação</footer>
+<button class="subir" id="subir" type="button" aria-label="Voltar ao topo">↑</button>
+
+<script>
+// Tabelas com rolagem horizontal no celular
+document.querySelectorAll('.cartao table').forEach(t => { const c = document.createElement('div'); c.className = 'tabela'; t.before(c); c.append(t); });
+// Botao copiar nos blocos de comando
+document.querySelectorAll('pre').forEach(pre => {
+  const b = document.createElement('button'); b.className = 'copiar'; b.type = 'button'; b.textContent = 'Copiar';
+  b.onclick = async () => {
+    try { await navigator.clipboard.writeText(pre.querySelector('code')?.innerText ?? pre.innerText); b.textContent = 'Copiado'; b.classList.add('ok'); }
+    catch { b.textContent = 'Selecione e copie'; }
+    setTimeout(() => { b.textContent = 'Copiar'; b.classList.remove('ok'); }, 1600);
+  };
+  pre.append(b);
+});
+// Menu: destaca a secao visivel; no celular abre/fecha
+const links = [...document.querySelectorAll('.menu a')];
+const obs = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) links.forEach(a => a.classList.toggle('ativo', a.getAttribute('href') === '#' + e.target.id)); }), { rootMargin: '-80px 0px -70% 0px' });
+document.querySelectorAll('.cartao').forEach(s => obs.observe(s));
+document.getElementById('menu-btn').onclick = () => document.getElementById('menu').classList.toggle('aberto');
+links.forEach(a => a.addEventListener('click', () => document.getElementById('menu').classList.remove('aberto')));
+const subir = document.getElementById('subir');
+addEventListener('scroll', () => subir.classList.toggle('mostrar', scrollY > 600), { passive: true });
+subir.onclick = () => scrollTo({ top: 0 });
+</script>
+</body>
+</html>

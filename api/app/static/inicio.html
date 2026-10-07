@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gestão TI · Prefeitura de Santa Luzia</title>
+<link rel="stylesheet" href="/static/estilo.css">
+<script src="/static/sweetalert2.all.min.js"></script>
+<script src="/static/comum.js"></script>
+</head>
+<body>
+
+<section id="tela-login" class="login oculto">
+  <div class="marca">
+    <div data-logo></div>
+    <div class="orgao1" data-texto="orgao_linha1">Prefeitura Municipal de</div>
+    <div class="orgao2" data-texto="orgao_linha2">Santa Luzia</div>
+    <div class="sistema" data-texto="app_subtitulo">Central de Gestão de Tecnologia da Informação</div>
+  </div>
+  <div class="painel">
+    <form class="caixa" id="form-login" autocomplete="on">
+      <h1>Bem-vindo</h1>
+      <p class="sub">Entre com o seu usuário e senha da rede.</p>
+      <div class="campo"><label for="usuario">Usuário da rede</label>
+        <input class="entrada" id="usuario" name="usuario" placeholder="ex.: joaosilva" autocomplete="username" required></div>
+      <div class="campo"><label for="senha">Senha</label>
+        <div class="senha-caixa"><input class="entrada" id="senha" name="senha" type="password" autocomplete="current-password" required>
+          <button type="button" data-olho aria-label="Mostrar senha"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12Z"/><circle cx="12" cy="12" r="3"/></svg></button></div></div>
+      <button class="btn-entrar" type="submit"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3"/></svg>Entrar</button>
+      <div class="versao" data-texto="app_nome">Gestão TI</div>
+    </form>
+  </div>
+  <footer class="rodape" data-texto="rodape">Desenvolvido pela Secretaria de Planejamento, Ciência, Tecnologia e Inovação</footer>
+</section>
+
+<section id="tela-app" class="oculto">
+  <header id="topo"></header>
+  <main class="conteudo">
+    <div class="saudacao"><h1 id="ola"></h1><p>Escolha um módulo para começar.</p></div>
+    <div class="aviso-acesso oculto" id="aviso-acesso"><b>Seu acesso ainda não foi liberado.</b> Você já está cadastrado na Gestão TI.
+      Peça à equipe da TI para liberar os módulos que você vai usar. Depois disso, é só entrar de novo.</div>
+    <div class="modulos" id="modulos"></div>
+  </main>
+</section>
+
+<script>
+const mostrarLogin = () => { $('#tela-app').classList.add('oculto'); $('#tela-login').classList.remove('oculto'); };
+
+ligarLogin($('#form-login'), async (usuario, senha) => {
+  await api('/api/auth/login', { method: 'POST', body: JSON.stringify({ usuario, senha }) });
+  abrir();
+});
+
+async function abrir() {
+  try { EU = await api('/api/auth/eu'); } catch { return mostrarLogin(); }
+  montarTopo('Início', 'inicio');
+  const hora = new Date().getHours();
+  $('#ola').textContent = `${hora < 12 ? 'Bom dia' : hora < 18 ? 'Boa tarde' : 'Boa noite'}, ${EU.nome.split(' ')[0]}`;
+  // Liberados: clicaveis. Em breve: aparecem so para a TI, para saber o que vem por ai.
+  const liberados = EU.catalogo.filter(m => EU.modulos.includes(m.id));
+  const emBreve = EU.ti ? EU.catalogo.filter(m => !m.disponivel) : [];
+  const aguardando = EU.catalogo.filter(m => (EU.aguardando || []).includes(m.id));
+  // Modulos do mesmo grupo (ex.: Rede Sem Fio) viram um card so; com um modulo so, o card abre direto nele
+  const cards = [], vistos = new Set();
+  for (const m of liberados) {
+    if (!m.grupo) { cards.push(m); continue; }
+    if (vistos.has(m.grupo)) continue;
+    vistos.add(m.grupo);
+    const doGrupo = liberados.filter(x => x.grupo === m.grupo), g = EU.grupos[m.grupo];
+    cards.push(doGrupo.length > 1 ? { ...g, url: g.url } : { ...g, url: doGrupo[0].url, descricao: doGrupo[0].nome + ': ' + doGrupo[0].descricao });
+  }
+  $('#modulos').innerHTML = cards.map(m => `<a class="modulo" href="${esc(m.url)}">
+      <span class="ico">${icone(m.icone, 24)}</span><h3>${esc(m.nome)}</h3><p>${esc(m.descricao)}</p></a>`).join('')
+    + aguardando.map(m => `<button type="button" class="modulo bloqueado" data-aguardando="${esc(m.nome)}"><span class="tag selo">Aguardando liberação</span>
+      <span class="ico">${icone(m.icone, 24)}</span><h3>${esc(m.nome)}</h3><p>${esc(m.descricao)}</p></button>`).join('')
+    + emBreve.map(m => `<div class="modulo em-breve"><span class="tag selo">Em breve</span>
+      <span class="ico">${icone(m.icone, 24)}</span><h3>${esc(m.nome)}</h3><p>${esc(m.descricao)}</p></div>`).join('');
+  $('#aviso-acesso').classList.toggle('oculto', liberados.length > 0);
+  $('#tela-login').classList.add('oculto');
+  $('#tela-app').classList.remove('oculto');
+}
+
+$('#modulos').addEventListener('click', ev => {
+  const b = ev.target.closest('[data-aguardando]'); if (!b) return;
+  Swal.fire({ icon: 'info', title: b.dataset.aguardando, text: 'Este módulo ainda não foi liberado para você. Peça à equipe da TI para ajustar as suas permissões.' });
+});
+
+carregarMarca().then(abrir);
+</script>
+</body>
+</html>

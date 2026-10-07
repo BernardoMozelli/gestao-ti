@@ -1,0 +1,543 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>E-mails em lote · Gestão TI</title>
+<link rel="stylesheet" href="/static/estilo.css">
+<script src="/static/sweetalert2.all.min.js"></script>
+<script src="/static/comum.js"></script>
+</head>
+<body>
+<section id="tela-app" class="oculto">
+  <header id="topo"></header>
+  <main class="conteudo">
+    <div id="aviso-smtp" class="aviso-caixa oculto" style="margin-bottom:14px"></div>
+    <div class="barra">
+      <nav class="abas" id="abas">
+        <button class="aba" data-aba="disparos">Disparos</button>
+        <button class="aba" data-aba="novo">Novo disparo</button>
+      </nav>
+      <div id="troca-origem" class="oculto"></div>
+    </div>
+
+    <!-- ====================================================== lista de disparos -->
+    <div id="painel-disparos" class="lista oculto"></div>
+
+    <!-- ====================================================== novo disparo -->
+    <div id="painel-novo" class="oculto">
+      <div class="etapas" id="etapas">
+        <div class="etapa" data-etapa="1">Destinatários</div>
+        <div class="etapa" data-etapa="2">Mensagem</div>
+        <div class="etapa" data-etapa="3">Envio em blocos</div>
+        <div class="etapa" data-etapa="4">Revisar e enviar</div>
+      </div>
+
+      <!-- etapa 1: destinatarios do AD -->
+      <section class="cartao pilha etapa-painel" data-etapa="1" id="dest-ad">
+        <div><h2>Usuários ativos do AD com e-mail</h2>
+          <p class="ajuda" id="ad-info">Carregando a lista do AD…</p></div>
+        <div class="filtros" style="margin:0">
+          <input class="entrada" id="ad-busca" placeholder="Buscar por nome, login ou e-mail">
+          <select class="entrada" id="ad-unidade"><option value="">Todas as unidades (OU)</option></select>
+          <button class="btn" id="ad-atualizar" title="Busca de novo no AD">Atualizar do AD</button>
+        </div>
+        <div class="barra" style="margin:0">
+          <span class="contador"><b id="ad-sel">0</b> selecionados de <span id="ad-total">0</span></span>
+          <span style="flex:1"></span>
+          <button class="btn peq" id="ad-marcar">Selecionar todos os filtrados</button>
+          <button class="btn peq" id="ad-desmarcar">Desmarcar os filtrados</button>
+          <button class="btn peq contorno-perigo" id="ad-limpar">Limpar seleção</button>
+        </div>
+        <div class="tabela-caixa"><table class="tabela"><thead><tr><th style="width:36px"><input type="checkbox" id="ad-pagina" title="Marcar esta página"></th><th>Nome</th><th>E-mail</th><th>Login</th><th>Unidade (OU)</th></tr></thead><tbody id="ad-linhas"></tbody></table></div>
+        <div class="paginacao"><span id="ad-pag-info"></span><button class="btn peq" id="ad-ant">Anterior</button><button class="btn peq" id="ad-prox">Próxima</button></div>
+      </section>
+
+      <!-- etapa 1: destinatarios de lista TXT -->
+      <section class="cartao pilha etapa-painel" data-etapa="1" id="dest-lista">
+        <div><h2>Lista de e-mails (arquivo TXT)</h2>
+          <p class="ajuda">Um e-mail por linha. Também aceita <code>Nome;email</code>, <code>email;Nome</code> ou <code>Nome &lt;email&gt;</code>. Linhas repetidas são removidas.</p></div>
+        <label class="btn indigo" style="justify-self:start">Escolher arquivo .txt<input type="file" id="lista-arquivo" accept=".txt,.csv,text/plain" hidden></label>
+        <div id="lista-resultado"></div>
+      </section>
+
+      <!-- etapa 2: mensagem -->
+      <section class="cartao pilha etapa-painel" data-etapa="2">
+        <div class="linha-campos">
+          <div class="campo"><label for="m-titulo">Nome do disparo (só para controle interno)</label><input class="entrada" id="m-titulo" placeholder="ex.: Aviso de manutenção do sistema"></div>
+          <div class="campo"><label for="m-remetente-email">Enviado pela conta</label><input class="entrada" id="m-remetente-email" readonly title="Todos os disparos saem desta conta (definida em Configurações)"></div>
+          <div class="campo"><label for="m-remetente">Nome do remetente</label><input class="entrada" id="m-remetente"></div>
+          <div class="campo"><label for="m-responder">Responder para (opcional)</label><input class="entrada" id="m-responder" placeholder="ex.: ti@santaluzia.mg.gov.br"></div>
+        </div>
+        <div class="campo"><label for="m-assunto">Assunto</label><input class="entrada" id="m-assunto" maxlength="300"></div>
+        <div class="campo"><label>Mensagem</label>
+          <div>
+            <div class="editor-barra" id="editor-barra">
+              <button type="button" data-cmd="bold" title="Negrito"><b>N</b></button>
+              <button type="button" data-cmd="italic" title="Itálico"><i>I</i></button>
+              <button type="button" data-cmd="underline" title="Sublinhado"><u>S</u></button>
+              <span class="sep"></span>
+              <button type="button" data-cmd="formatBlock" data-val="H2" title="Título">Título</button>
+              <button type="button" data-cmd="formatBlock" data-val="P" title="Parágrafo">Texto</button>
+              <button type="button" data-cmd="insertUnorderedList" title="Lista">• Lista</button>
+              <button type="button" data-cmd="insertOrderedList" title="Lista numerada">1. Lista</button>
+              <span class="sep"></span>
+              <button type="button" data-cmd="justifyLeft" title="Alinhar à esquerda">⇤</button>
+              <button type="button" data-cmd="justifyCenter" title="Centralizar">⇔</button>
+              <span class="sep"></span>
+              <button type="button" data-acao="link" title="Inserir link">Link</button>
+              <button type="button" data-acao="imagem-pc" title="Colocar uma imagem do computador dentro da mensagem">Imagem do computador</button>
+              <button type="button" data-acao="imagem" title="Imagem por endereço da internet (URL)">Imagem (link)</button>
+              <button type="button" data-cmd="removeFormat" title="Limpar formatação">Limpar</button>
+              <span class="sep"></span>
+              <button type="button" data-var="{nome}" title="Nome da pessoa">{nome}</button>
+              <button type="button" data-var="{email}" title="E-mail da pessoa">{email}</button>
+              <span class="sep"></span>
+              <button type="button" data-acao="html" title="Editar o HTML">HTML</button>
+            </div>
+            <div class="editor" id="editor" contenteditable="true"></div>
+            <input type="file" id="imagem-arquivo" accept="image/png,image/jpeg,image/gif,image/webp" hidden>
+            <textarea class="entrada oculto" id="editor-html" style="min-height:260px;border-radius:0 0 12px 12px;font-family:monospace;font-size:13px"></textarea>
+          </div>
+          <p class="ajuda">Use <b>{nome}</b> e <b>{email}</b> no assunto ou no texto para personalizar. Se a pessoa não tiver nome na lista, entra a parte do e-mail antes do @.<br>
+            Imagens (cartaz, banner, foto) podem ser colocadas <b>dentro da mensagem</b>: use <b>Imagem do computador</b>, cole com Ctrl+V ou arraste para o texto. Elas vão embutidas no e-mail. Documentos (PDF, Word, Excel…) vão em <b>Anexos</b>, logo abaixo.</p>
+        </div>
+        <div class="campo"><label>Anexos (opcional)</label>
+          <div class="anexos" id="anexos"></div>
+          <label class="btn" style="justify-self:start">Adicionar anexo<input type="file" id="anexo-arquivo" multiple hidden></label>
+          <p class="ajuda" id="anexos-info"></p>
+        </div>
+        <div class="barra" style="margin:0"><button class="btn" id="btn-teste">Enviar teste para mim</button></div>
+      </section>
+
+      <!-- etapa 3: blocos -->
+      <section class="cartao pilha etapa-painel" data-etapa="3">
+        <div><h2>Envio em blocos</h2><p class="ajuda">Divida o envio para não sobrecarregar o servidor de e-mail. Total de destinatários: <b id="b-total">0</b>.</p></div>
+        <div class="linha-campos">
+          <div class="campo"><label for="b-qtd-blocos">Quantidade de blocos</label><input class="entrada" id="b-qtd-blocos" type="number" min="1" value="1"></div>
+          <div class="campo"><label for="b-tamanho">ou e-mails por bloco</label><input class="entrada" id="b-tamanho" type="number" min="1"></div>
+        </div>
+        <div class="blocos-previa" id="b-previa"></div>
+        <div class="campo"><label>Como liberar os blocos</label>
+          <div class="opcoes-radio">
+            <label><span><input type="radio" name="b-modo" value="automatico" checked><b>Automático</b></span><small>Os blocos saem sozinhos, um depois do outro, com o intervalo abaixo.</small></label>
+            <label><span><input type="radio" name="b-modo" value="manual"><b>Manual</b></span><small>Ao terminar cada bloco, o envio espera você clicar em "Liberar próximo bloco".</small></label>
+          </div>
+        </div>
+        <div class="campo" id="b-intervalo-caixa"><label for="b-intervalo">Intervalo entre os blocos (minutos)</label><input class="entrada" id="b-intervalo" type="number" min="0" value="30" style="max-width:220px"></div>
+        <p class="ajuda" id="b-estimativa"></p>
+      </section>
+
+      <!-- etapa 4: revisar -->
+      <section class="cartao pilha etapa-painel" data-etapa="4">
+        <h2>Revisar e enviar</h2>
+        <div id="r-resumo" class="item" style="border:0;padding:0"></div>
+        <div class="campo"><label>Como a mensagem vai chegar (exemplo com o primeiro destinatário)</label><iframe class="previa" id="r-previa" sandbox="allow-same-origin"></iframe></div>
+      </section>
+
+      <div class="barra" style="margin-top:16px">
+        <button class="btn" id="btn-voltar">Voltar</button><span style="flex:1"></span>
+        <button class="btn indigo" id="btn-avancar">Continuar</button>
+        <button class="btn primario oculto" id="btn-enviar">Iniciar disparo</button>
+      </div>
+    </div>
+  </main>
+</section>
+
+<script>
+const chamar = (c, o) => api(c, o, irParaInicio);
+const params = new URLSearchParams(location.search);
+let CFG = null, ORIGEM = null, aba = 'disparos', etapa = 1, timer = null;
+let AD = [], SEL = new Set(), filtrados = [], pagina = 0;
+let LISTA = null, LISTA_NOME = '', ANEXOS = [];
+const POR_PAGINA = 100;
+
+// ---------------------------------------------------------------- abertura
+async function abrir() {
+  if (!await exigirSessao('email_ad', 'email_lista')) return;
+  CFG = await chamar('/api/email/config');
+  ORIGEM = params.get('origem') === 'ad' && CFG.pode_ad ? 'ad' : (params.get('origem') === 'lista' && CFG.pode_lista ? 'lista' : (CFG.pode_ad ? 'ad' : 'lista'));
+  montarTopo(ORIGEM === 'ad' ? 'E-mails para usuários do AD' : 'E-mails por lista (TXT)', ORIGEM === 'ad' ? 'email' : 'lista');
+  if (CFG.pode_ad && CFG.pode_lista) {
+    const outra = ORIGEM === 'ad' ? 'lista' : 'ad';
+    $('#troca-origem').innerHTML = `<a class="btn" href="/m/email?origem=${outra}">${outra === 'ad' ? 'Ir para: usuários do AD' : 'Ir para: lista TXT'}</a>`;
+    $('#troca-origem').classList.remove('oculto');
+  }
+  if (!CFG.smtp_configurado) {
+    $('#aviso-smtp').innerHTML = '<b>O servidor de e-mail ainda não está configurado.</b> Dá para montar e revisar os disparos, mas o envio só funciona depois de configurar o servidor de e-mail '
+      + (CFG.pode_configurar ? 'no módulo <a href="/m/configuracoes">Configurações</a>.' : '. Peça à TI para configurar.');
+    $('#aviso-smtp').classList.remove('oculto');
+  }
+  $('#m-remetente').value = CFG.remetente_nome || '';
+  // Remetentes que a pessoa pode usar: o proprio e-mail e os aliases da conta no AD (e o padrao, para a TI)
+  try {
+    const rem = await chamar('/api/email/remetentes');
+    $('#m-remetente-email').value = rem.length ? rem[0].email : '';
+    const teste = rem[0]?.tipo === 'teste';
+    $('#m-remetente-email').classList.toggle('modo-teste', teste);
+    $('#m-remetente-email').title = teste ? 'Modo de teste ligado em Configurações: os e-mails saem desta conta, não da geral@.' : 'Todos os disparos saem desta conta.';
+    const rot = document.querySelector('label[for=m-remetente-email]');
+    rot.innerHTML = 'Enviado pela conta' + (teste ? ' <span class="tag teste">modo de teste</span>' : '');
+    $('#m-remetente-email').placeholder = 'conta de envio não configurada';
+  } catch (e) { $('#m-remetente-email').value = ''; }
+  $('#dest-ad').classList.toggle('oculto', ORIGEM !== 'ad');
+  $('#dest-lista').classList.toggle('oculto', ORIGEM !== 'lista');
+  $('#anexos-info').textContent = `PDF, Word, Excel, imagens e outros documentos, até ${CFG.anexos_max_mb} MB no total. Arquivos executáveis (.exe, .bat, .js…) não são aceitos.`;
+  $('#tela-app').classList.remove('oculto');
+  trocarAba('disparos');
+}
+$('#abas').addEventListener('click', ev => { const b = ev.target.closest('.aba'); if (b) trocarAba(b.dataset.aba); });
+function trocarAba(nova) {
+  aba = nova;
+  document.querySelectorAll('.aba').forEach(x => x.classList.toggle('ativa', x.dataset.aba === aba));
+  $('#painel-disparos').classList.toggle('oculto', aba !== 'disparos');
+  $('#painel-novo').classList.toggle('oculto', aba !== 'novo');
+  clearInterval(timer);
+  if (aba === 'disparos') { carregarDisparos(); timer = setInterval(() => { if (!document.hidden && !Swal.isVisible()) carregarDisparos(true); }, 5000); }
+  else { irEtapa(etapa); if (ORIGEM === 'ad' && !AD.length) carregarAD(false); }
+}
+
+// ---------------------------------------------------------------- etapa 1: AD
+async function carregarAD(atualizar) {
+  $('#ad-info').textContent = 'Carregando a lista do AD… (pode levar alguns segundos)';
+  try {
+    const r = await chamar('/api/email/ad/usuarios' + (atualizar ? '?atualizar=true' : ''));
+    AD = r.usuarios;
+    $('#ad-unidade').innerHTML = '<option value="">Todas as unidades (OU)</option>' + r.unidades.map(u => `<option>${esc(u)}</option>`).join('');
+    $('#ad-info').textContent = `${numero(r.total)} usuários ativos com e-mail · lista do AD de ${r.atualizado_em}`;
+    $('#ad-total').textContent = numero(r.total);
+    filtrarAD();
+  } catch (e) { $('#ad-info').textContent = 'Não foi possível carregar a lista do AD: ' + e.message; }
+}
+function filtrarAD() {
+  const q = $('#ad-busca').value.trim().toLowerCase(), un = $('#ad-unidade').value;
+  filtrados = AD.filter(u => (!un || u.unidade === un) && (!q || (u.nome + ' ' + u.email + ' ' + u.login).toLowerCase().includes(q)));
+  pagina = 0; renderAD();
+}
+function renderAD() {
+  const ini = pagina * POR_PAGINA, pg = filtrados.slice(ini, ini + POR_PAGINA);
+  $('#ad-linhas').innerHTML = pg.map(u => `<tr><td><input type="checkbox" data-email="${esc(u.email)}" ${SEL.has(u.email) ? 'checked' : ''}></td>
+    <td>${esc(u.nome)}</td><td>${esc(u.email)}</td><td>${esc(u.login)}</td><td>${esc(u.unidade)}</td></tr>`).join('')
+    || '<tr><td colspan="5" style="text-align:center;color:var(--suave);padding:24px">Ninguém encontrado com esse filtro.</td></tr>';
+  $('#ad-pagina').checked = pg.length > 0 && pg.every(u => SEL.has(u.email));
+  $('#ad-pag-info').textContent = filtrados.length ? `${numero(ini + 1)}–${numero(Math.min(ini + POR_PAGINA, filtrados.length))} de ${numero(filtrados.length)} filtrados` : '';
+  $('#ad-ant').disabled = pagina === 0; $('#ad-prox').disabled = ini + POR_PAGINA >= filtrados.length;
+  $('#ad-sel').textContent = numero(SEL.size);
+}
+$('#ad-busca').addEventListener('input', () => { clearTimeout(filtrarAD._t); filtrarAD._t = setTimeout(filtrarAD, 200); });
+$('#ad-unidade').addEventListener('change', filtrarAD);
+$('#ad-atualizar').onclick = () => carregarAD(true);
+$('#ad-ant').onclick = () => { pagina--; renderAD(); };
+$('#ad-prox').onclick = () => { pagina++; renderAD(); };
+$('#ad-marcar').onclick = () => { filtrados.forEach(u => SEL.add(u.email)); renderAD(); };
+$('#ad-desmarcar').onclick = () => { filtrados.forEach(u => SEL.delete(u.email)); renderAD(); };
+$('#ad-limpar').onclick = () => { SEL.clear(); renderAD(); };
+$('#ad-pagina').onchange = ev => { filtrados.slice(pagina * POR_PAGINA, (pagina + 1) * POR_PAGINA).forEach(u => ev.target.checked ? SEL.add(u.email) : SEL.delete(u.email)); renderAD(); };
+$('#ad-linhas').addEventListener('change', ev => { const c = ev.target.closest('input[data-email]'); if (!c) return; c.checked ? SEL.add(c.dataset.email) : SEL.delete(c.dataset.email); $('#ad-sel').textContent = numero(SEL.size); });
+
+// ---------------------------------------------------------------- etapa 1: lista TXT
+$('#lista-arquivo').addEventListener('change', async ev => {
+  const arq = ev.target.files[0]; if (!arq) return;
+  const fd = new FormData(); fd.append('arquivo', arq);
+  try {
+    const r = await fetch('/api/email/lista/ler', { method: 'POST', body: fd, credentials: 'same-origin' });
+    const corpo = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(corpo.detail || `Erro ${r.status}`);
+    LISTA = corpo.validos; LISTA_NOME = arq.name;
+    renderLista(corpo);
+  } catch (e) { erro(e); }
+  ev.target.value = '';
+});
+function renderLista(r) {
+  $('#lista-resultado').innerHTML = `<div class="numeros" style="margin:0 0 12px">
+      <div class="numero verde"><b>${numero(r.validos.length)}</b><span>e-mails válidos em ${esc(LISTA_NOME)}</span></div>
+      <div class="numero"><b>${numero(r.duplicados || 0)}</b><span>repetidos removidos</span></div>
+      <div class="numero laranja"><b>${numero(r.total_invalidos || 0)}</b><span>linhas sem e-mail válido</span></div></div>
+    ${r.invalidos && r.invalidos.length ? `<details style="margin-bottom:12px"><summary>Ver as linhas ignoradas</summary><div class="tabela-caixa" style="max-height:200px;margin-top:8px"><table class="tabela"><tr><th>Linha</th><th>Conteúdo</th></tr>${r.invalidos.map(i => `<tr><td>${i.linha}</td><td class="quebra">${esc(i.texto)}</td></tr>`).join('')}</table></div></details>` : ''}
+    <div class="tabela-caixa" style="max-height:300px"><table class="tabela"><thead><tr><th>E-mail</th><th>Nome</th></tr></thead><tbody>
+    ${r.validos.slice(0, 200).map(v => `<tr><td>${esc(v.email)}</td><td>${esc(v.nome || '')}</td></tr>`).join('')}</tbody></table></div>
+    ${r.validos.length > 200 ? `<p class="ajuda">Mostrando os 200 primeiros.</p>` : ''}`;
+}
+
+// ---------------------------------------------------------------- etapa 2: editor e anexos
+const editor = $('#editor');
+$('#editor-barra').addEventListener('mousedown', ev => { if (ev.target.closest('button')) ev.preventDefault(); });
+$('#editor-barra').addEventListener('click', async ev => {
+  const b = ev.target.closest('button'); if (!b) return;
+  if (b.dataset.acao === 'html') { alternarHtml(); return; }
+  if (b.dataset.acao === 'imagem-pc') { guardarCursor(); $('#imagem-arquivo').click(); return; }
+  if (!$('#editor-html').classList.contains('oculto')) return;
+  editor.focus();
+  if (b.dataset.cmd) document.execCommand(b.dataset.cmd, false, b.dataset.val || null);
+  if (b.dataset.var) document.execCommand('insertText', false, b.dataset.var);
+  if (b.dataset.acao === 'link' || b.dataset.acao === 'imagem') {
+    const sel = window.getSelection(), faixa = sel.rangeCount ? sel.getRangeAt(0) : null;
+    const r = await Swal.fire({ title: b.dataset.acao === 'link' ? 'Endereço do link' : 'Endereço (URL) da imagem', input: 'url', inputPlaceholder: 'https://', showCancelButton: true, confirmButtonText: 'Inserir', cancelButtonText: 'Voltar' });
+    if (!r.isConfirmed || !r.value) return;
+    editor.focus(); if (faixa) { sel.removeAllRanges(); sel.addRange(faixa); }
+    if (b.dataset.acao === 'link') { if (faixa && !faixa.collapsed) document.execCommand('createLink', false, r.value); else document.execCommand('insertHTML', false, `<a href="${esc(r.value)}">${esc(r.value)}</a>`); }
+    else document.execCommand('insertHTML', false, `<img src="${esc(r.value)}" alt="" style="max-width:100%">`);
+  }
+});
+// ---------------- imagens dentro da mensagem (enviadas para o servidor e embutidas no e-mail no envio)
+let cursorSalvo = null;
+function guardarCursor() {
+  const sel = window.getSelection();
+  cursorSalvo = sel.rangeCount && editor.contains(sel.anchorNode) ? sel.getRangeAt(0).cloneRange() : null;
+}
+async function enviarImagens(arquivos) {
+  const imagens = [...arquivos].filter(f => f.type.startsWith('image/'));
+  for (const f of imagens) {
+    if (f.size > CFG.imagem_max_mb * 1048576) { erro(new Error(`A imagem ${f.name} passa de ${CFG.imagem_max_mb} MB. Diminua o tamanho e tente de novo.`)); continue; }
+    const fd = new FormData(); fd.append('arquivo', f);
+    try {
+      const r = await fetch('/api/email/imagens', { method: 'POST', body: fd, credentials: 'same-origin' });
+      const corpo = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(corpo.detail || `Erro ${r.status}`);
+      editor.focus();
+      const sel = window.getSelection();
+      if (cursorSalvo) { sel.removeAllRanges(); sel.addRange(cursorSalvo); cursorSalvo = null; }
+      else if (!editor.contains(sel.anchorNode)) { const fx = document.createRange(); fx.selectNodeContents(editor); fx.collapse(false); sel.removeAllRanges(); sel.addRange(fx); }
+      document.execCommand('insertHTML', false, `<div><img src="${esc(corpo.url)}" alt="" style="max-width:100%;height:auto"></div><p><br></p>`);
+    } catch (e) { erro(e); }
+  }
+  return imagens.length;
+}
+$('#imagem-arquivo').addEventListener('change', async ev => { await enviarImagens(ev.target.files); ev.target.value = ''; });
+editor.addEventListener('paste', ev => {
+  const arquivos = [...(ev.clipboardData?.files || [])];
+  if (arquivos.some(f => f.type.startsWith('image/'))) { ev.preventDefault(); guardarCursor(); enviarImagens(arquivos); }
+});
+editor.addEventListener('dragover', ev => { if ([...ev.dataTransfer.items].some(i => i.kind === 'file')) ev.preventDefault(); });
+editor.addEventListener('drop', ev => {
+  const arquivos = [...ev.dataTransfer.files];
+  if (!arquivos.length) return;
+  ev.preventDefault();
+  if (document.caretRangeFromPoint) { const fx = document.caretRangeFromPoint(ev.clientX, ev.clientY); if (fx) cursorSalvo = fx; }
+  enviarImagens(arquivos).then(n => { if (n < arquivos.length) toast('Documentos vão em Anexos, abaixo da mensagem.', 'info'); });
+});
+
+function alternarHtml() {
+  const ta = $('#editor-html'), editando = !ta.classList.contains('oculto');
+  if (editando) editor.innerHTML = ta.value; else ta.value = editor.innerHTML;
+  ta.classList.toggle('oculto', editando); editor.classList.toggle('oculto', !editando);
+}
+const corpoHtml = () => $('#editor-html').classList.contains('oculto') ? editor.innerHTML : $('#editor-html').value;
+
+$('#anexo-arquivo').addEventListener('change', ev => {
+  const limite = CFG.anexos_max_mb * 1048576;
+  for (const f of ev.target.files) {
+    if (ANEXOS.reduce((s, a) => s + a.size, 0) + f.size > limite) { erro(new Error(`Os anexos passam do limite de ${CFG.anexos_max_mb} MB.`)); break; }
+    ANEXOS.push(f);
+  }
+  ev.target.value = ''; renderAnexos();
+});
+function renderAnexos() {
+  $('#anexos').innerHTML = ANEXOS.map((f, i) => `<span class="anexo">${esc(f.name)} · ${tamanhoArquivo(f.size)}<button type="button" data-i="${i}" title="Remover">×</button></span>`).join('');
+}
+$('#anexos').addEventListener('click', ev => { const b = ev.target.closest('button[data-i]'); if (b) { ANEXOS.splice(Number(b.dataset.i), 1); renderAnexos(); } });
+
+$('#btn-teste').onclick = async () => {
+  const m = lerMensagem(); if (m.erro) return erro(new Error(m.erro));
+  const r = await Swal.fire({ title: 'Enviar um teste', input: 'email', inputValue: EU.email || '', inputLabel: 'Para qual e-mail?', showCancelButton: true, confirmButtonText: 'Enviar teste', cancelButtonText: 'Voltar',
+    footer: ANEXOS.length ? 'O teste vai sem os anexos. Eles são conferidos na revisão.' : '' });
+  if (!r.isConfirmed) return;
+  try { await chamar('/api/email/teste', { method: 'POST', body: JSON.stringify({ para: r.value, assunto: m.assunto, corpo_html: m.corpo_html, remetente_nome: m.remetente_nome, remetente_email: m.remetente_email, responder_para: m.responder_para }) }); toast('Teste enviado. Confira a caixa de entrada.'); }
+  catch (e) { erro(e); }
+};
+function lerMensagem() {
+  const m = { titulo: $('#m-titulo').value.trim(), assunto: $('#m-assunto').value.trim(), corpo_html: corpoHtml().trim(),
+    remetente_nome: $('#m-remetente').value.trim() || null, remetente_email: $('#m-remetente-email').value || null,
+    responder_para: $('#m-responder').value.trim() || null };
+  if (!m.remetente_email) m.erro = 'A conta de envio dos e-mails não está configurada. Fale com a TI (Configurações).';
+  else if (m.titulo.length < 3) m.erro = 'Dê um nome ao disparo (mínimo 3 letras), para achá-lo depois no histórico.';
+  else if (!m.assunto) m.erro = 'Preencha o assunto.';
+  else if (!editor.innerText.trim() && !/<img/i.test(m.corpo_html)) m.erro = 'Escreva a mensagem ou coloque uma imagem.';
+  return m;
+}
+
+// ---------------------------------------------------------------- etapa 3: blocos
+const destinatarios = () => ORIGEM === 'ad' ? AD.filter(u => SEL.has(u.email)).map(u => ({ email: u.email, nome: u.nome })) : (LISTA || []);
+function tamanhoBloco() { const t = destinatarios().length; return Math.max(1, Math.min(t, Number($('#b-tamanho').value) || t)); }
+function blocosDe(total, tam) { const r = []; for (let i = 0; i < total; i += tam) r.push(Math.min(tam, total - i)); return r; }
+$('#b-qtd-blocos').addEventListener('input', () => { const t = destinatarios().length, q = Math.max(1, Number($('#b-qtd-blocos').value) || 1); $('#b-tamanho').value = Math.ceil(t / q); previaBlocos(false); });
+$('#b-tamanho').addEventListener('input', () => previaBlocos(true));
+document.querySelectorAll('input[name=b-modo]').forEach(r => r.addEventListener('change', previaBlocos));
+$('#b-intervalo').addEventListener('input', previaBlocos);
+function previaBlocos(atualizarQtd = true) {
+  const t = destinatarios().length, tam = tamanhoBloco(), b = blocosDe(t, tam);
+  if (atualizarQtd === true) $('#b-qtd-blocos').value = b.length;
+  $('#b-total').textContent = numero(t);
+  $('#b-previa').innerHTML = b.slice(0, 30).map((q, i) => `<span>Bloco ${i + 1}: ${numero(q)}</span>`).join('') + (b.length > 30 ? `<span>… ${b.length - 30} blocos a mais</span>` : '');
+  const manual = $('input[name=b-modo]:checked').value === 'manual';
+  $('#b-intervalo-caixa').classList.toggle('oculto', manual);
+  const minBloco = Math.ceil(tam * CFG.pausa_ms / 60000) || 1;
+  const intervalo = manual ? 0 : Number($('#b-intervalo').value) || 0;
+  const totalMin = b.length * minBloco + (b.length - 1) * intervalo;
+  $('#b-estimativa').textContent = `Cada bloco leva cerca de ${minBloco} min para sair.` + (manual ? ' Os blocos seguintes esperam você liberar.' : ` Tempo total estimado: ${totalMin >= 60 ? Math.floor(totalMin / 60) + ' h ' : ''}${totalMin % 60} min.`);
+}
+
+// ---------------------------------------------------------------- etapa 4: revisao e envio
+function revisar() {
+  const d = destinatarios(), m = lerMensagem(), b = blocosDe(d.length, tamanhoBloco()), manual = $('input[name=b-modo]:checked').value === 'manual';
+  $('#r-resumo').innerHTML = `<div class="meta" style="font-size:14px;color:var(--tinta);gap:20px">
+    <span><b>${esc(m.titulo)}</b></span><span>Destinatários: <b>${numero(d.length)}</b> ${ORIGEM === 'ad' ? '(usuários do AD)' : `(lista ${esc(LISTA_NOME)})`}</span>
+    <span>Blocos: <b>${b.length}</b> de até ${numero(tamanhoBloco())}</span><span>${manual ? 'Liberação <b>manual</b> de cada bloco' : `Automático, intervalo de <b>${Number($('#b-intervalo').value) || 0} min</b>`}</span>
+    <span>Anexos: <b>${ANEXOS.length ? ANEXOS.map(a => esc(a.name)).join(', ') : 'nenhum'}</b></span></div>
+    <div class="meta" style="font-size:14px;color:var(--tinta)"><span>Assunto: <b>${esc(trocar(m.assunto, d[0]))}</b></span><span>De: ${esc(m.remetente_nome || CFG.remetente_nome)} &lt;${esc(m.remetente_email || CFG.remetente || 'não configurado')}&gt;</span></div>`;
+  $('#r-previa').onload = ajustarPrevia;
+  $('#r-previa').srcdoc = `<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.5;color:#14152b;padding:8px">${trocarHtml(m.corpo_html, d[0])}</div>`;
+}
+// Ajusta a altura da previa ao tamanho da mensagem (o iframe nao roda scripts)
+function ajustarPrevia(ev) {
+  const f = ev.target;
+  try {
+    const doc = f.contentDocument;
+    const medir = () => { f.style.height = Math.max(240, doc.documentElement.scrollHeight + 20) + 'px'; };
+    medir(); doc.querySelectorAll('img').forEach(i => i.addEventListener('load', medir));
+  } catch { /* sem acesso: fica com a altura padrao */ }
+}
+const nomeDe = p => (p && (p.nome || p.email.split('@')[0])) || 'Fulano';
+const trocar = (t, p) => t.replaceAll('{nome}', nomeDe(p)).replaceAll('{email}', p ? p.email : '');
+const trocarHtml = (t, p) => t.replaceAll('{nome}', esc(nomeDe(p))).replaceAll('{email}', esc(p ? p.email : ''));
+
+function validarEtapa(n) {
+  if (n === 1) {
+    const t = destinatarios().length;
+    if (!t) return ORIGEM === 'ad' ? 'Selecione pelo menos um usuário.' : 'Envie o arquivo TXT com os e-mails.';
+    if (t > CFG.max_emails) return `O máximo por disparo é ${numero(CFG.max_emails)} e-mails.`;
+  }
+  if (n === 2) { const m = lerMensagem(); if (m.erro) return m.erro; }
+  if (n === 3 && $('input[name=b-modo]:checked').value === 'automatico' && Number($('#b-intervalo').value) < 0) return 'Intervalo inválido.';
+  return null;
+}
+function irEtapa(n) {
+  etapa = n;
+  document.querySelectorAll('.etapa').forEach(e => { const k = Number(e.dataset.etapa); e.classList.toggle('ativa', k === n); e.classList.toggle('feita', k < n); });
+  document.querySelectorAll('.etapa-painel').forEach(p => p.classList.toggle('oculto', Number(p.dataset.etapa) !== n || (p.id === 'dest-ad' && ORIGEM !== 'ad') || (p.id === 'dest-lista' && ORIGEM !== 'lista')));
+  $('#btn-voltar').classList.toggle('oculto', n === 1);
+  $('#btn-avancar').classList.toggle('oculto', n === 4);
+  $('#btn-enviar').classList.toggle('oculto', n !== 4);
+  if (n === 3) { if (!$('#b-tamanho').value || Number($('#b-tamanho').value) > destinatarios().length) $('#b-tamanho').value = destinatarios().length; previaBlocos(true); }
+  if (n === 4) revisar();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+$('#btn-voltar').onclick = () => irEtapa(Math.max(1, etapa - 1));
+$('#btn-avancar').onclick = () => { const e = validarEtapa(etapa); if (e) return Swal.fire({ icon: 'warning', title: e }); irEtapa(etapa + 1); };
+
+$('#btn-enviar').onclick = async () => {
+  for (const n of [1, 2, 3]) { const e = validarEtapa(n); if (e) { irEtapa(n); return Swal.fire({ icon: 'warning', title: e }); } }
+  const d = destinatarios(), m = lerMensagem(), b = blocosDe(d.length, tamanhoBloco());
+  const r = await Swal.fire({ icon: 'question', title: 'Iniciar o disparo?', confirmButtonText: 'Iniciar disparo', cancelButtonText: 'Voltar', showCancelButton: true,
+    html: `<b>${numero(d.length)}</b> e-mails em <b>${b.length}</b> bloco(s).<br>Depois de iniciado, dá para pausar ou cancelar, mas os e-mails já enviados não voltam.` });
+  if (!r.isConfirmed) return;
+  const botao = $('#btn-enviar'); botao.disabled = true;
+  let criado = null;
+  try {
+    Swal.fire({ title: 'Preparando o disparo…', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    criado = await chamar('/api/email/disparos', { method: 'POST', body: JSON.stringify({
+      titulo: m.titulo, origem: ORIGEM, lista_nome: ORIGEM === 'lista' ? LISTA_NOME : null, assunto: m.assunto, corpo_html: m.corpo_html,
+      remetente_nome: m.remetente_nome, remetente_email: m.remetente_email, responder_para: m.responder_para, tamanho_bloco: tamanhoBloco(),
+      modo: $('input[name=b-modo]:checked').value, intervalo_minutos: Number($('#b-intervalo').value) || 0, destinatarios: d }) });
+    for (const f of ANEXOS) {
+      const fd = new FormData(); fd.append('arquivo', f);
+      const resp = await fetch(`/api/email/disparos/${criado.id}/anexos`, { method: 'POST', body: fd, credentials: 'same-origin' });
+      if (!resp.ok) throw new Error((await resp.json().catch(() => ({}))).detail || `Falha ao anexar ${f.name}`);
+    }
+    await chamar(`/api/email/disparos/${criado.id}/iniciar`, { method: 'POST' });
+    Swal.close(); toast(`Disparo nº ${criado.id} iniciado.`);
+    limparFormulario(); trocarAba('disparos');
+  } catch (e) {
+    Swal.close();
+    erro(new Error(e.message + (criado ? ` O disparo nº ${criado.id} ficou como rascunho na lista; você pode excluí-lo e tentar de novo.` : '')));
+  } finally { botao.disabled = false; }
+};
+function limparFormulario() {
+  SEL.clear(); LISTA = null; LISTA_NOME = ''; ANEXOS = []; renderAnexos();
+  ['#m-titulo', '#m-assunto', '#m-responder', '#b-tamanho'].forEach(s => $(s).value = '');
+  $('#b-qtd-blocos').value = 1; editor.innerHTML = ''; $('#editor-html').value = ''; $('#lista-resultado').innerHTML = '';
+  etapa = 1; if (AD.length) renderAD();
+}
+
+// ---------------------------------------------------------------- lista e acompanhamento dos disparos
+async function carregarDisparos(silencioso = false) {
+  try {
+    const lista = (await chamar('/api/email/disparos')).filter(d => d.origem === ORIGEM);
+    const el = $('#painel-disparos');
+    if (!lista.length) { el.innerHTML = '<div class="vazio">Nenhum disparo ainda. Clique em <b>Novo disparo</b> para começar.</div>'; return; }
+    el.innerHTML = lista.map(cartaoDisparo).join('');
+  } catch (e) { if (!silencioso) erro(e); }
+}
+function cartaoDisparo(d) {
+  const pct = v => d.total ? (v / d.total * 100).toFixed(2) : 0;
+  const acoes = [];
+  if (d.status === 'aguardando_bloco') acoes.push(`<button class="btn peq primario" data-op="proximo-bloco" data-id="${d.id}">Liberar próximo bloco</button>`);
+  if (['enviando', 'aguardando_bloco'].includes(d.status)) acoes.push(`<button class="btn peq" data-op="pausar" data-id="${d.id}">Pausar</button>`);
+  if (d.status === 'pausado') acoes.push(`<button class="btn peq indigo" data-op="retomar" data-id="${d.id}">Retomar</button>`);
+  if (['enviando', 'aguardando_bloco', 'pausado'].includes(d.status)) acoes.push(`<button class="btn peq contorno-perigo" data-op="cancelar" data-id="${d.id}">Cancelar</button>`);
+  if (d.status === 'rascunho') acoes.push(`<button class="btn peq contorno-perigo" data-op="excluir" data-id="${d.id}">Excluir rascunho</button>`);
+  acoes.push(`<button class="btn peq" data-op="duplicar" data-id="${d.id}">Duplicar</button>`, `<a class="btn peq" href="/api/email/disparos/${d.id}/relatorio.csv">Relatório CSV</a>`);
+  const proximo = d.status === 'enviando' && d.proximo_bloco_em && new Date(d.proximo_bloco_em) > new Date() ? `<span>Próximo bloco às ${dataHora(d.proximo_bloco_em)}</span>` : '';
+  return `<article class="item clicavel" data-detalhe="${d.id}">
+    <div class="topo-item"><b>${esc(d.titulo)}</b><span class="tag ${d.status}">${esc(d.status_nome)}</span><span class="tag">nº ${d.id}</span>${d.lista_nome ? `<span class="tag">${esc(d.lista_nome)}</span>` : ''}</div>
+    <div class="meta"><span>Assunto: ${esc(d.assunto)}</span><span>Por ${esc(d.criado_por)} em ${dataHora(d.criado_em)}</span></div>
+    <div class="barra-progresso" title="${numero(d.enviados)} enviados, ${numero(d.falhas)} falhas"><i style="width:${pct(d.enviados)}%"></i><i class="falha" style="width:${pct(d.falhas)}%"></i></div>
+    <div class="meta"><span><b>${numero(d.enviados)}</b> de ${numero(d.total)} enviados</span>${d.falhas ? `<span style="color:var(--ruim)"><b>${numero(d.falhas)}</b> falhas</span>` : ''}
+      <span>${d.total_blocos} bloco(s) de até ${numero(d.tamanho_bloco)} · ${d.modo === 'manual' ? 'liberação manual' : `automático, intervalo ${d.intervalo_minutos} min`}</span>${proximo}</div>
+    ${d.ultimo_erro ? `<div class="aviso-caixa">${esc(d.ultimo_erro)}</div>` : ''}
+    <div class="acoes">${acoes.join('')}</div></article>`;
+}
+$('#painel-disparos').addEventListener('click', async ev => {
+  const b = ev.target.closest('button[data-op]');
+  if (b) { ev.stopPropagation(); return acaoDisparo(b.dataset.op, Number(b.dataset.id)); }
+  if (ev.target.closest('a')) return;
+  const c = ev.target.closest('[data-detalhe]'); if (c) detalheDisparo(Number(c.dataset.detalhe));
+});
+async function acaoDisparo(op, id) {
+  const textos = { pausar: ['Pausar o envio?', 'O envio para depois do e-mail atual. Você pode retomar quando quiser.'],
+    retomar: ['Retomar o envio?', 'O envio continua de onde parou.'], 'proximo-bloco': ['Liberar o próximo bloco?', 'O próximo bloco começa a sair agora.'],
+    cancelar: ['Cancelar o disparo?', 'Os e-mails que ainda não saíram não serão mais enviados. Isso não pode ser desfeito.'],
+    excluir: ['Excluir o rascunho?', 'O rascunho e os anexos dele serão apagados.'] };
+  try {
+    if (op === 'duplicar') return duplicar(id);
+    const [titulo, texto] = textos[op];
+    const r = await Swal.fire({ icon: 'question', title: titulo, text: texto, showCancelButton: true, confirmButtonText: 'Confirmar', cancelButtonText: 'Voltar',
+      customClass: ['cancelar', 'excluir'].includes(op) ? { confirmButton: 'perigo' } : {} });
+    if (!r.isConfirmed) return;
+    if (op === 'excluir') await chamar(`/api/email/disparos/${id}`, { method: 'DELETE' });
+    else await chamar(`/api/email/disparos/${id}/${op}`, { method: 'POST' });
+    toast('Feito.'); carregarDisparos();
+  } catch (e) { erro(e); }
+}
+async function detalheDisparo(id) {
+  try {
+    const d = await chamar(`/api/email/disparos/${id}`);
+    const blocos = d.blocos.map(b => `<tr><td>${b.bloco}</td><td>${numero(b.total)}</td><td>${numero(b.enviado)}</td><td>${numero(b.erro)}</td><td>${numero(b.pendente)}</td><td>${numero(b.cancelado)}</td></tr>`).join('');
+    const falhas = d.falhas_recentes.map(f => `<tr><td>${esc(f.email)}</td><td class="quebra">${esc(f.erro || '')}</td></tr>`).join('');
+    Swal.fire({ title: `${esc(d.titulo)} · nº ${d.id}`, width: 860, confirmButtonText: 'Fechar',
+      html: `<div style="text-align:left" class="pilha">
+        <div class="meta"><span class="tag ${d.status}">${esc(d.status_nome)}</span><span>Iniciado: ${dataHora(d.iniciado_em)}</span><span>Concluído: ${dataHora(d.concluido_em)}</span><span>De: ${esc(d.remetente_email || '')}</span><span>Anexos: ${d.anexos.length ? d.anexos.map(a => esc(a.nome)).join(', ') : 'nenhum'}</span></div>
+        <div class="tabela-caixa" style="max-height:220px"><table class="tabela"><tr><th>Bloco</th><th>Total</th><th>Enviados</th><th>Falhas</th><th>Pendentes</th><th>Cancelados</th></tr>${blocos}</table></div>
+        ${falhas ? `<b>Últimas falhas</b><div class="tabela-caixa" style="max-height:200px"><table class="tabela"><tr><th>E-mail</th><th>Motivo</th></tr>${falhas}</table></div>` : ''}
+        <b>Assunto: ${esc(d.assunto)}</b><iframe class="previa" sandbox="allow-same-origin" onload="ajustarPrevia(event)" srcdoc="${esc(`<div style='font-family:Arial,sans-serif;font-size:15px;line-height:1.5'>${d.corpo_html}</div>`)}"></iframe></div>` });
+  } catch (e) { erro(e); }
+}
+async function duplicar(id) {
+  try {
+    const d = await chamar(`/api/email/disparos/${id}`);
+    limparFormulario();
+    $('#m-titulo').value = d.titulo + ' (cópia)'; $('#m-assunto').value = d.assunto; $('#m-remetente').value = d.remetente_nome || CFG.remetente_nome;
+    $('#m-responder').value = d.responder_para || ''; editor.innerHTML = d.corpo_html;
+    const dest = await chamar(`/api/email/disparos/${id}/destinatarios`);
+    if (ORIGEM === 'lista') { LISTA = dest; LISTA_NOME = d.lista_nome || `lista do disparo nº ${id}`; renderLista({ validos: dest, invalidos: [], duplicados: 0, total_invalidos: 0 }); }
+    else { if (!AD.length) await carregarAD(false); dest.forEach(x => SEL.add(x.email)); renderAD(); }
+    $('#b-tamanho').value = d.tamanho_bloco; document.querySelector(`input[name=b-modo][value=${d.modo}]`).checked = true; $('#b-intervalo').value = d.intervalo_minutos;
+    trocarAba('novo'); irEtapa(1);
+    toast(`Copiado do disparo nº ${id}${d.anexos.length ? '. Anexe os arquivos de novo.' : ''}`, 'info');
+  } catch (e) { erro(e); }
+}
+
+carregarMarca().then(abrir);
+</script>
+</body>
+</html>

@@ -1,0 +1,56 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: gestao-ti-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: gestao_ti
+      POSTGRES_USER: gestao
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      TZ: America/Sao_Paulo
+    volumes:
+      - dados_db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gestao -d gestao_ti"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: ./api
+    container_name: gestao-ti-api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      # A senha (DB_PASSWORD) vem do .env; o endereco do banco e montado pela aplicacao
+      DB_HOST: db
+      DB_USER: gestao
+      DB_NAME: gestao_ti
+      DADOS_DIR: /srv/dados
+    volumes:
+      # Coloque aqui logo.svg ou logo.png para trocar a marca das telas
+      - ./marca:/srv/app/static/marca:ro
+      # Anexos dos disparos de e-mail
+      - dados_app:/srv/dados
+    ports:
+      - "${PORTA:-8090}:8000"
+
+  # Servidor de e-mail FALSO para testes: recebe tudo e mostra em http://localhost:8025 (nada sai de verdade).
+  # So sobe com: docker compose --profile teste up -d
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: gestao-ti-mailpit
+    restart: unless-stopped
+    profiles: ["teste"]
+    environment:
+      MP_MAX_MESSAGES: 20000
+      TZ: America/Sao_Paulo
+    ports:
+      - "8025:8025"
+
+volumes:
+  dados_db:
+  dados_app:

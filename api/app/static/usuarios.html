@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gestão de Usuários · Gestão TI</title>
+<link rel="stylesheet" href="/static/estilo.css">
+<script src="/static/sweetalert2.all.min.js"></script>
+<script src="/static/comum.js"></script>
+<script src="/static/contas-ad.js"></script>
+</head>
+<body>
+<section id="tela-app" class="oculto">
+  <header id="topo"></header>
+  <main class="conteudo">
+    <div class="barra">
+      <nav class="abas" id="abas">
+        <button class="aba ativa" data-aba="ativos">Ativos<span class="cont" id="c-ativos">…</span></button>
+        <button class="aba" data-aba="desativados">Desativados<span class="cont" id="c-desativados">…</span></button>
+        <button class="aba" data-aba="registro">Acessos e alterações</button>
+      </nav>
+      <button class="btn" id="btn-atualizar" title="Buscar de novo no AD">Atualizar</button>
+      <button class="btn primario" id="btn-local">Novo usuário local</button>
+    </div>
+    <div class="filtros diretorio" id="filtros">
+      <input class="entrada" id="f-busca" placeholder="Buscar por login, nome, CPF ou matrícula" autocomplete="off">
+      <select class="entrada" id="f-filtro">
+        <option value="todos">Todos</option>
+        <option value="com_acesso">Com acesso à Gestão TI</option>
+        <option value="sem_acesso">Sem acesso à Gestão TI</option>
+        <option value="ti">Equipe da TI</option>
+        <option value="bloqueados">Contas bloqueadas no AD</option>
+        <option value="atencao">Contas com atenção (bolinha laranja)</option>
+        <option value="ad">Só usuários do AD</option>
+        <option value="locais">Só usuários locais</option>
+      </select>
+    </div>
+    <div class="legenda-status" title="Situação da conta no AD. Passe o mouse na bolinha para ver o motivo.">
+      <span><i class="status-ad verde"></i>Ativa e normal</span>
+      <span><i class="status-ad laranja"></i>Ativa, com atenção (senha nunca expira, senha expirada, deve trocar a senha…)</span>
+      <span><i class="status-ad vermelho"></i>Desativada ou bloqueada</span>
+    </div>
+    <div id="aviso" class="aviso-acesso oculto"></div>
+    <div id="dica" class="dica-outra-aba oculto"></div>
+    <div id="conteudo" class="lista"></div>
+  </main>
+</section>
+
+<script>
+let aba = 'ativos', LISTA = [], LIMITE = 100;
+const chamar = (c, o) => api(c, o, irParaInicio);
+const nomeModulo = id => { const m = EU.catalogo.find(x => x.id === id); return m ? nomeCompleto(m) : id; };
+const NOMES_ACAO = { login: 'Entrou na Gestão TI', login_falhou: 'Falha ao entrar', usuario_adicionado: 'Cadastrou usuário',
+  admin_criado: 'Criou usuário local', admin_senha: 'Trocou senha de usuário local', admin_ativado: 'Liberou acesso à Gestão TI', admin_desativado: 'Bloqueou acesso à Gestão TI',
+  admin_ad_primeiro_acesso: 'Primeiro acesso (AD)', permissoes_alteradas: 'Alterou permissões', delegacao_alterada: 'Alterou quem pode conceder permissões', configuracao_alterada: 'Alterou configurações',
+  sessao_finalizada: 'Finalizou sessão na Gestão TI', logoff_solicitado: 'Pediu logoff no Windows', logoff_executado: 'Logoff feito no Windows',
+  logoff_falhou: 'Logoff no Windows não foi feito', ...NOMES_CONTA };
+
+async function abrir() {
+  if (!await exigirSessao('usuarios')) return;
+  montarTopo('Gestão de Usuários', 'usuarios');
+  $('#btn-local').classList.toggle('oculto', !EU.pode_conceder);   // so quem concede permissoes cria usuario local
+  $('#tela-app').classList.remove('oculto');
+  carregar();
+}
+function trocarAba(nova) {
+  aba = nova; LIMITE = 100;
+  document.querySelectorAll('.aba').forEach(x => x.classList.toggle('ativa', x.dataset.aba === aba));
+  $('#filtros').classList.toggle('oculto', aba === 'registro');
+  carregar();
+}
+$('#abas').addEventListener('click', ev => { const b = ev.target.closest('.aba'); if (b) trocarAba(b.dataset.aba); });
+$('#f-busca').addEventListener('input', () => { clearTimeout(carregar._t); carregar._t = setTimeout(() => { LIMITE = 100; carregar(); }, 300); });
+$('#f-filtro').addEventListener('change', () => { LIMITE = 100; carregar(); });
+$('#btn-atualizar').onclick = () => carregar(true);
+
+async function carregar(atualizar = false) {
+  try {
+    if (aba === 'registro') { $('#aviso').classList.add('oculto'); $('#dica').classList.add('oculto'); return renderEventos(await chamar('/api/usuarios/eventos')); }
+    if (!LISTA.length || atualizar) $('#conteudo').innerHTML = `<div class="vazio">${atualizar ? 'Buscando de novo no AD…' : 'Carregando usuários do AD…'}</div>`;
+    // Cancela a busca anterior se a pessoa continuou digitando: so a resposta mais nova aparece
+    carregar._ctl?.abort();
+    const ctl = carregar._ctl = new AbortController();
+    $('#conteudo').classList.add('carregando');
+    const p = new URLSearchParams({ q: $('#f-busca').value.trim(), situacao: aba, filtro: $('#f-filtro').value, limite: LIMITE, atualizar });
+    let r;
+    try { r = await chamar('/api/usuarios/diretorio?' + p, { signal: ctl.signal }); }
+    catch (e) { if (e.name === 'AbortError') return; throw e; }
+    finally { if (carregar._ctl === ctl) $('#conteudo').classList.remove('carregando'); }
+    LISTA = r.itens;
+    $('#c-ativos').textContent = r.contagem.ativos; $('#c-desativados').textContent = r.contagem.desativados;
+    $('#aviso').textContent = r.aviso || ''; $('#aviso').classList.toggle('oculto', !r.aviso);
+    // Filtro inteligente: se o que foi buscado esta na outra aba, avisa e leva ate la com um clique
+    const outra = aba === 'ativos' ? 'desativados' : 'ativos', naOutra = r.contagem[outra];
+    const mostrarDica = $('#f-busca').value.trim() && naOutra > 0;
+    $('#dica').innerHTML = mostrarDica ? `${r.total ? '' : 'Nada aqui. '}${naOutra} resultado${naOutra > 1 ? 's' : ''} em <button type="button" id="ir-outra">${outra === 'ativos' ? 'Ativos' : 'Desativados'}</button>.` : '';
+    $('#dica').classList.toggle('oculto', !mostrarDica);
+    if (mostrarDica) $('#ir-outra').onclick = () => trocarAba(outra);
+    renderUsuarios(r.total);
+  } catch (e) { erro(e); }
+}
+
+function etiquetas(u) {
+  const t = [`<span class="tag ${u.origem === 'local' ? 'origem-local' : 'origem-ad'}">${u.origem === 'local' ? 'Local' : 'AD'}</span>`];
+  if (u.registro?.admin_geral) t.push('<span class="tag adm-geral" title="Tem todos os módulos e concede permissões">Adm geral</span>');
+  else if (u.registro?.pode_conceder) t.push('<span class="tag concede" title="Autorizado pelo adm geral a conceder permissões">Concede permissões</span>');
+  if (u.ti) t.push('<span class="tag indigo">TI</span>');
+  if (u.origem === 'ad') {
+    if (!u.no_ad) t.push('<span class="tag negada">Não está mais no AD</span>');
+    else if (!u.ativo) t.push('<span class="tag negada">Desativada no AD</span>' + etiquetaUso(u));
+    if (u.bloqueado) t.push('<span class="tag negada">Bloqueada</span>');
+    if (u.senha_expirada) t.push('<span class="tag pendente">Senha expirada</span>');
+    if (u.deve_trocar_senha) t.push('<span class="tag pendente">Deve trocar a senha</span>');
+    if (u.protegida) t.push('<span class="tag" title="Administradores e contas privilegiadas do AD">Conta protegida</span>');
+  } else if (!u.ativo) t.push('<span class="tag negada">Desativado</span>');
+  if (u.registro && !u.registro.ativo && u.origem === 'ad') t.push('<span class="tag negada">Acesso à Gestão TI bloqueado</span>');
+  return t.join('');
+}
+function linhaModulos(u) {
+  const r = u.registro;
+  if (!r) return '<span>Nunca acessou o Gestão TI</span>';
+  if (r.admin_geral) return '<span class="tag indigo">Todos os módulos</span>';
+  if (!r.modulos.length) return '<span class="tag pendente">Entrou, aguardando liberação de módulos</span>';
+  return r.modulos.map(m => `<span class="tag indigo">${esc(nomeModulo(m))}</span>`).join('');
+}
+function renderUsuarios(total) {
+  if (!LISTA.length) { $('#conteudo').innerHTML = `<div class="vazio">${$('#f-busca').value.trim() ? 'Ninguém encontrado nesta aba.' : 'Ninguém aqui.'}</div>`; return; }
+  $('#conteudo').innerHTML = LISTA.map((u, i) => {
+    const eu = u.login === EU.usuario, ad = u.origem === 'ad';
+    const acoes = [];
+    if (ad && u.no_ad && !u.ativo) acoes.push(`<button class="btn peq primario" data-op="reativar" data-i="${i}" ${eu ? 'disabled' : ''}>Reativar no AD</button>`);
+    if (ad && u.bloqueado) acoes.push(`<button class="btn peq" data-op="desbloquear" data-i="${i}">Desbloquear</button>`);
+    if (ad && u.no_ad && u.ativo) acoes.push(`<button class="btn peq" data-op="redefinir" data-i="${i}">${eu ? 'Redefinir minha senha' : 'Redefinir senha'}</button>`);
+    // Mexer em permissoes/acesso: so o adm geral e quem ele autorizou; ninguem altera a si mesmo; adm geral so por adm geral
+    const podeMexer = EU.pode_conceder && !eu && (!u.registro?.admin_geral || EU.admin_geral);
+    // Finalizar sessao: na Gestao TI (quem ja entrou) e/ou no Windows (onde esta logado agora)
+    const logado = (u.logado_em || []);
+    const podeSessao = !eu && (u.registro || logado.length) && (!u.registro?.admin_geral || EU.admin_geral);
+    if (!ad && (eu || podeMexer)) acoes.push(`<button class="btn peq" data-op="senha" data-i="${i}">Trocar senha</button>`);
+    if (u.registro && podeMexer) acoes.push(`<button class="btn peq ${u.registro.ativo ? 'contorno-perigo' : ''}" data-op="acesso" data-i="${i}">${u.registro.ativo ? (ad ? 'Bloquear acesso à Gestão TI' : 'Desativar') : (ad ? 'Liberar acesso à Gestão TI' : 'Ativar')}</button>`);
+    if (podeMexer && !u.registro?.admin_geral && (!ad || u.ativo)) acoes.push(`<button class="btn peq indigo" data-op="permissoes" data-i="${i}">Permissões</button>`);
+    if (podeSessao) acoes.push(`<button class="btn peq contorno-perigo" data-op="sessao" data-i="${i}" title="Desconectar da Gestão TI e/ou fazer logoff no Windows">Finalizar sessão</button>`);
+    return `<article class="item">
+    <div class="topo-item">${ad && u.no_ad && u.status ? `<span class="status-ad ${u.status}" title="${esc(u.status_motivo || '')}" aria-label="${esc(u.status_motivo || '')}"></span>` : ''}<b>${esc(u.nome)}</b><span class="tag indigo">${esc(u.login)}</span>${etiquetas(u)}</div>
+    <div class="meta">${u.unidade ? `<span>${esc(u.unidade)}</span>` : ''}${u.matricula ? `<span>Matrícula ${esc(u.matricula)}</span>` : ''}${u.cpf ? `<span>CPF ${esc(u.cpf)}</span>` : ''}${u.email ? `<span>${esc(u.email)}</span>` : ''}</div>
+    <div class="meta">${linhaModulos(u)}</div>
+    ${logado.length ? `<div class="meta"><span class="logado-agora">Logado agora no Windows: ${logado.map(p => `<b>${esc(p.hostname)}</b>${p.desde ? ` desde ${dataHora(p.desde)}` : ''}`).join(', ')}</span></div>` : ''}
+    <div class="meta">${ad && u.no_ad ? `<span>Último logon no AD: ${dataHora(u.ultimo_logon)}</span>` : ''}${u.registro ? `<span>Último acesso à Gestão TI: ${dataHora(u.registro.ultimo_login)}</span>` : ''}</div>
+    <div class="acoes">${acoes.join('')}</div>
+  </article>`; }).join('')
+    + (total > LISTA.length ? `<div class="mais"><button class="btn" id="btn-mais">Mostrar mais (${total - LISTA.length} restantes)</button></div>` : '');
+  $('#btn-mais')?.addEventListener('click', () => { LIMITE += 200; carregar(); });
+}
+$('#conteudo').addEventListener('click', ev => {
+  const b = ev.target.closest('button[data-op]'); if (!b) return;
+  const u = LISTA[Number(b.dataset.i)], depois = () => carregar();
+  ({ permissoes: editarPermissoes, senha: trocarSenha, acesso: alternar, sessao: finalizarSessao,
+     redefinir: x => redefinirSenhaAD(x, depois), desbloquear: x => desbloquearContaAD(x, depois), reativar: x => reativarContaAD(x, depois) })[b.dataset.op](u);
+});
+
+async function finalizarSessao(u) {
+  const pcs = u.logado_em || [];
+  const r = await Swal.fire({ title: `Finalizar sessão de ${esc(u.nome)}`, width: 620, showCancelButton: true,
+    confirmButtonText: 'Finalizar', cancelButtonText: 'Voltar', confirmButtonColor: '#c62828',
+    html: `<div style="text-align:left" class="pilha">
+      <label class="marcar delegacao"><input type="checkbox" id="sw-gestao" ${u.registro ? 'checked' : 'disabled'}>
+        <span><b>Gestão TI e portal do Wi-Fi</b><small>${u.registro ? 'Desconecta a pessoa em todos os navegadores. Ela precisa entrar de novo.' : 'Esta pessoa nunca acessou o Gestão TI.'}</small></span></label>
+      ${pcs.length ? pcs.map(p => `<label class="marcar delegacao"><input type="checkbox" name="sw-pc" value="${esc(p.hostname)}" checked>
+        <span><b>Windows em ${esc(p.hostname)}</b><small>Logoff${p.desde ? ` (logada desde ${dataHora(p.desde)})` : ''}. O que não estiver salvo será perdido.</small></span></label>`).join('')
+        : '<p style="margin:0;font-size:13.5px;color:var(--suave)">A pessoa não aparece logada no Windows em nenhum computador agora.</p>'}
+      ${pcs.length ? `<label class="marcar"><input type="checkbox" id="sw-avisar" checked> Avisar na tela 1 minuto antes do logoff</label>
+        <div class="aviso-sei">O logoff acontece na próxima consulta do computador, em até 5 minutos. O resultado aparece nos Logs.</div>` : ''}
+      <div class="campo"><label for="sw-motivo">Motivo / nº do chamado (opcional)</label><input class="entrada" id="sw-motivo" autocomplete="off"></div></div>`,
+    preConfirm: () => {
+      const gestao = $('#sw-gestao').checked && !$('#sw-gestao').disabled;
+      const computadores = [...document.querySelectorAll('input[name=sw-pc]:checked')].map(c => c.value);
+      const motivo = $('#sw-motivo').value.trim();
+      if (!gestao && !computadores.length) { Swal.showValidationMessage('Escolha o que finalizar.'); return false; }
+      return { gestao, computadores, avisar: $('#sw-avisar')?.checked ?? true, motivo };
+    } });
+  if (!r.isConfirmed) return;
+  try {
+    const res = await chamar(`/api/usuarios/${encodeURIComponent(u.login)}/finalizar-sessao`, { method: 'POST', body: JSON.stringify(r.value) });
+    const partes = [];
+    if (res.gestao) partes.push('Sessão na Gestão TI finalizada.');
+    if (res.logoff.length) partes.push(`Logoff pedido em ${res.logoff.join(', ')}: acontece na próxima consulta do computador (até 5 minutos)${r.value.avisar ? ', depois de 1 minuto de aviso na tela' : ''}.`);
+    await Swal.fire({ icon: 'success', title: 'Pronto', text: partes.join(' ') });
+  } catch (e) { Swal.fire({ icon: 'error', title: 'Não foi possível', text: e.message }); }
+}
+
+function caixasModulos(selecionados) {
+  return `<div class="check-modulos">${EU.catalogo.map(m => {
+    const pode = m.disponivel;
+    const motivo = !m.disponivel ? 'Em breve' : '';
+    return `<label class="${pode ? '' : 'desabilitado'}"><input type="checkbox" name="sw-mod" value="${m.id}" ${selecionados.includes(m.id) ? 'checked' : ''} ${pode ? '' : 'disabled'}>
+      <span><b>${esc(nomeCompleto(m))}</b>${motivo ? ` <span class="tag">${motivo}</span>` : ''}<small>${esc(m.descricao)}</small></span></label>`;
+  }).join('')}</div>`;
+}
+const lerModulos = () => [...document.querySelectorAll('input[name=sw-mod]:checked')].map(c => c.value);
+
+async function editarPermissoes(u) {
+  const atuais = u.registro ? u.registro.modulos : [];
+  const concede = !!u.registro?.pode_conceder;
+  const r = await Swal.fire({ title: `Permissões de ${esc(u.nome)}`, width: 620, showCancelButton: true, confirmButtonText: 'Salvar', cancelButtonText: 'Voltar',
+    html: `${caixasModulos(atuais)}
+      ${EU.admin_geral ? `<label class="marcar delegacao"><input type="checkbox" id="sw-concede" ${concede ? 'checked' : ''}>
+        <span><b>Pode conceder permissões a outros usuários</b><small>Só o adm geral libera isto. A pessoa poderá dar e tirar módulos de outros usuários, mas não poderá autorizar outras pessoas a conceder.</small></span></label>` : ''}`,
+    preConfirm: () => ({ modulos: lerModulos(), ...(EU.admin_geral ? { pode_conceder: $('#sw-concede').checked } : {}) }) });
+  if (!r.isConfirmed) return;
+  try {
+    if (u.origem === 'local') await chamar(`/api/usuarios/${u.registro.id}`, { method: 'PATCH', body: JSON.stringify(r.value) });
+    else await chamar(`/api/usuarios/ad/${encodeURIComponent(u.login)}/modulos`, { method: 'PUT', body: JSON.stringify(r.value) });
+    toast('Permissões salvas.'); carregar();
+  } catch (e) { erro(e); }
+}
+async function alternar(u) {
+  const ativar = !u.registro.ativo, ad = u.origem === 'ad';
+  const r = await Swal.fire({ icon: 'question', showCancelButton: true, cancelButtonText: 'Voltar', customClass: ativar ? {} : { confirmButton: 'perigo' },
+    title: ad ? `${ativar ? 'Liberar' : 'Bloquear'} o acesso de ${esc(u.nome)} à Gestão TI?` : `${ativar ? 'Ativar' : 'Desativar'} o usuário local ${esc(u.login)}?`,
+    text: ad ? 'Isto vale só para a Gestão TI. A conta no AD não muda.' : '',
+    confirmButtonText: ativar ? (ad ? 'Liberar' : 'Ativar') : (ad ? 'Bloquear' : 'Desativar') });
+  if (!r.isConfirmed) return;
+  try { await chamar(`/api/usuarios/${u.registro.id}`, { method: 'PATCH', body: JSON.stringify({ ativo: ativar }) }); toast('Acesso atualizado.'); carregar(); }
+  catch (e) { erro(e); }
+}
+async function trocarSenha(u) {
+  const r = await Swal.fire({ title: `Nova senha de ${esc(u.login)}`, input: 'password', inputPlaceholder: 'Mínimo 8 caracteres', showCancelButton: true,
+    confirmButtonText: 'Salvar', cancelButtonText: 'Voltar', inputValidator: v => (!v || v.length < 8) ? 'Mínimo 8 caracteres.' : undefined });
+  if (!r.isConfirmed) return;
+  try { await chamar(`/api/usuarios/${u.registro.id}`, { method: 'PATCH', body: JSON.stringify({ senha: r.value }) }); toast('Senha alterada.'); }
+  catch (e) { erro(e); }
+}
+
+$('#btn-local').onclick = async () => {
+  const r = await Swal.fire({ title: 'Novo usuário local', width: 620, showCancelButton: true, confirmButtonText: 'Criar', cancelButtonText: 'Voltar',
+    html: `<p style="margin:0;font-size:13px;color:var(--suave)">Use só como acesso de emergência, para quando o AD estiver fora do ar.</p>
+      <div class="campo"><label for="sw-u">Login</label><input class="entrada" id="sw-u" autocomplete="off"></div>
+      <div class="campo"><label for="sw-n">Nome</label><input class="entrada" id="sw-n"></div>
+      <div class="campo"><label for="sw-s">Senha (mínimo 8 caracteres)</label><input class="entrada" id="sw-s" type="password" autocomplete="new-password"></div>
+      <div class="campo"><label>Módulos</label></div>${caixasModulos([])}`,
+    preConfirm: () => ({ usuario: $('#sw-u').value.trim(), nome: $('#sw-n').value.trim(), senha: $('#sw-s').value, modulos: lerModulos() }) });
+  if (!r.isConfirmed) return;
+  try { await chamar('/api/usuarios/local', { method: 'POST', body: JSON.stringify(r.value) }); toast('Usuário criado.'); carregar(); }
+  catch (e) { erro(e); }
+};
+
+function renderEventos(lista) {
+  if (!lista.length) { $('#conteudo').innerHTML = '<div class="vazio">Nenhum registro.</div>'; return; }
+  $('#conteudo').innerHTML = `<div class="item">${lista.map(e => `<div class="evento"><span class="q">${dataHora(e.criado_em)}</span><span><b>${esc(NOMES_ACAO[e.acao] || e.acao)}</b> · ${esc(e.autor)}${e.ip ? ` · IP ${esc(e.ip)}` : ''}${e.detalhe ? `<br><span class="q">${esc(e.detalhe)}</span>` : ''}</span></div>`).join('')}</div>`;
+}
+
+carregarMarca().then(abrir);
+</script>
+</body>
+</html>

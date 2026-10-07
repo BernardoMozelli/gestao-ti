@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reset de senha · Gestão TI</title>
+<link rel="stylesheet" href="/static/estilo.css">
+<script src="/static/sweetalert2.all.min.js"></script>
+<script src="/static/comum.js"></script>
+<script src="/static/contas-ad.js"></script>
+</head>
+<body>
+<section id="tela-app" class="oculto">
+  <header id="topo"></header>
+  <main class="conteudo">
+    <div class="barra">
+      <nav class="abas" id="abas">
+        <button class="aba ativa" data-aba="contas">Contas</button>
+        <button class="aba" data-aba="historico">Histórico</button>
+      </nav>
+    </div>
+    <div class="filtros" id="filtros"><input class="entrada" id="f-busca" placeholder="Nome, login, e-mail, CPF ou matrícula (mínimo 2 caracteres)" autocomplete="off"></div>
+    <p class="ajuda" id="ajuda" style="color:var(--suave);margin:0 0 12px">Confirme a identidade da pessoa antes de trocar a senha (ex.: matrícula, setor, ligação do ramal dela).
+      A senha temporária aparece uma única vez e não fica gravada em lugar nenhum.</p>
+    <div id="conteudo" class="lista"></div>
+  </main>
+</section>
+
+<script>
+const chamar = (c, o) => api(c, o, irParaInicio);
+let aba = 'contas', CONTAS = [];
+const NOMES = NOMES_CONTA;
+
+async function abrir() {
+  if (!await exigirSessao('senhas')) return;
+  montarTopo('Reset de senha', 'chave');
+  $('#tela-app').classList.remove('oculto');
+  vazio();
+  $('#f-busca').focus();
+}
+const vazio = () => { $('#conteudo').innerHTML = '<div class="vazio">Digite o nome, o login, o e-mail, o CPF ou a matrícula para encontrar a conta.</div>'; };
+
+$('#abas').addEventListener('click', ev => {
+  const b = ev.target.closest('.aba'); if (!b) return;
+  aba = b.dataset.aba;
+  document.querySelectorAll('.aba').forEach(x => x.classList.toggle('ativa', x === b));
+  $('#filtros').classList.toggle('oculto', aba !== 'contas'); $('#ajuda').classList.toggle('oculto', aba !== 'contas');
+  aba === 'historico' ? carregarHistorico() : buscar();
+});
+$('#f-busca').addEventListener('input', () => { clearTimeout(buscar._t); buscar._t = setTimeout(buscar, 350); });
+
+async function buscar() {
+  const q = $('#f-busca').value.trim();
+  if (q.length < 2) return vazio();
+  $('#conteudo').innerHTML = '<div class="vazio">Buscando no AD…</div>';
+  try { CONTAS = await chamar('/api/senhas/buscar?q=' + encodeURIComponent(q)); render(); }
+  catch (e) { $('#conteudo').innerHTML = `<div class="vazio">${esc(e.message)}</div>`; }
+}
+function etiquetas(c) {
+  const t = [];
+  t.push(c.ativo ? '<span class="tag aprovada">Ativa</span>' : '<span class="tag negada">Desativada</span>' + etiquetaUso(c));
+  if (c.bloqueado) t.push('<span class="tag negada">Bloqueada</span>');
+  if (c.senha_expirada) t.push('<span class="tag pendente">Senha expirada</span>');
+  if (c.deve_trocar_senha) t.push('<span class="tag pendente">Deve trocar no próximo logon</span>');
+  if (c.protegida) t.push('<span class="tag" title="Administradores e contas privilegiadas">Conta protegida</span>');
+  return t.join('');
+}
+function render() {
+  if (!CONTAS.length) { $('#conteudo').innerHTML = '<div class="vazio">Nenhuma conta encontrada.</div>'; return; }
+  $('#conteudo').innerHTML = CONTAS.map((c, i) => `<article class="item">
+    <div class="topo-item"><b>${esc(c.nome)}</b><span class="tag indigo">${esc(c.login)}</span>${etiquetas(c)}</div>
+    <div class="meta">${c.unidade ? `<span>${esc(c.unidade)}</span>` : ''}${c.email ? `<span>${esc(c.email)}</span>` : ''}${c.matricula ? `<span>Matrícula ${esc(c.matricula)}</span>` : ''}${c.cpf ? `<span>CPF ${esc(c.cpf)}</span>` : ''}
+      <span>Senha trocada em: ${dataHora(c.senha_trocada_em)}</span><span>Último logon: ${dataHora(c.ultimo_logon)}</span></div>
+    ${c.descricao ? `<div class="meta"><span>${esc(c.descricao)}</span></div>` : ''}
+    <div class="acoes">
+      ${!c.ativo ? `<button class="btn peq" data-op="reativar" data-i="${i}" ${c.protegida ? 'disabled' : ''}>Reativar no AD</button>` : ''}
+      ${c.bloqueado ? `<button class="btn peq" data-op="desbloquear" data-i="${i}">Desbloquear</button>` : ''}
+      <button class="btn peq primario" data-op="redefinir" data-i="${i}" ${c.protegida || c.login === EU.usuario ? 'disabled title="Não disponível para esta conta"' : ''}>Redefinir senha</button>
+    </div></article>`).join('');
+}
+$('#conteudo').addEventListener('click', ev => {
+  const b = ev.target.closest('button[data-op]'); if (!b) return;
+  const c = CONTAS[Number(b.dataset.i)];
+  ({ redefinir: redefinirSenhaAD, desbloquear: desbloquearContaAD, reativar: reativarContaAD })[b.dataset.op](c, buscar);
+});
+
+async function carregarHistorico() {
+  try {
+    const lista = await chamar('/api/senhas/historico');
+    if (!lista.length) { $('#conteudo').innerHTML = '<div class="vazio">Nenhuma troca de senha registrada ainda.</div>'; return; }
+    $('#conteudo').innerHTML = `<div class="item">${lista.map(e => `<div class="evento"><span class="q">${dataHora(e.criado_em)}</span><span><b>${esc(NOMES[e.acao] || e.acao)}</b> · por ${esc(e.autor)}${e.ip ? ` · IP ${esc(e.ip)}` : ''}<br><span class="q">${esc(e.detalhe || '')}</span></span></div>`).join('')}</div>`;
+  } catch (e) { erro(e); }
+}
+
+carregarMarca().then(abrir);
+</script>
+</body>
+</html>
