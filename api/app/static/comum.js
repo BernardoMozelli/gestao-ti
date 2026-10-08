@@ -114,6 +114,73 @@ function lerPrazo(id, maxHoras) {
   return { horas: Number(sel.value), indeterminado: false };
 }
 
+// =========================================================================== expiracao da sessao por inatividade
+// So uso real conta (mouse, teclado, toque, rolagem). As atualizacoes automaticas das telas nao renovam a sessao.
+// O horario da ultima renovacao fica no navegador e vale para todas as abas: usar uma aba mantem as outras vivas.
+let _vigia = null;
+function pararVigiaInatividade() { if (_vigia) { _vigia.parar(); _vigia = null; } }
+function vigiarInatividade({ minutos, renovar, aoExpirar }) {
+  pararVigiaInatividade();
+  if (!minutos || minutos <= 0) return;
+  const LIMITE = minutos * 60000, AVISO = Math.min(120000, LIMITE / 2), INTERVALO_RENOVAR = Math.min(60000, LIMITE / 6);
+  const chave = 'gt_sessao_renovada:' + renovar;
+  const lerRenovada = () => { try { return Number(localStorage.getItem(chave)) || 0; } catch { return 0; } };
+  const gravarRenovada = v => { try { localStorage.setItem(chave, String(v)); } catch { /* sem armazenamento: vale so esta aba */ } };
+  let renovadaAqui = 0, avisando = false, encerrado = false, pedindo = false, relogioAviso = null;
+  const renovadaEm = () => Math.max(renovadaAqui, lerRenovada());
+  const resta = () => LIMITE - (Date.now() - renovadaEm());
+  const mmss = ms => `${Math.floor(ms / 60000)}:${String(Math.floor(ms / 1000) % 60).padStart(2, '0')}`;
+
+  async function renovarAgora() {
+    if (pedindo || encerrado) return;
+    pedindo = true;
+    try {
+      const r = await fetch(renovar, { method: 'POST', credentials: 'same-origin' });
+      if (r.status === 401) return expirar();
+      if (r.ok) { renovadaAqui = Date.now(); gravarRenovada(renovadaAqui); }
+    } catch { /* sem rede agora: tenta de novo na proxima atividade */ }
+    finally { pedindo = false; }
+  }
+  function atividade() {
+    if (avisando || encerrado) return;              // com o aviso na tela, so o botao "Continuar conectado" renova
+    if (Date.now() - renovadaEm() > INTERVALO_RENOVAR) renovarAgora();
+  }
+  function expirar() {
+    if (encerrado) return;
+    encerrado = true;
+    clearInterval(relogio); clearInterval(relogioAviso);
+    if (avisando && Swal.isVisible()) Swal.close();
+    _vigia = null;
+    aoExpirar();
+  }
+  function mostrarAviso() {
+    avisando = true;
+    Swal.fire({ icon: 'warning', title: 'Sua sessão vai expirar',
+      html: `Você está sem usar o sistema há um tempo. Por segurança, a sessão será encerrada em <b id="sw-resta">${mmss(resta())}</b>.`,
+      showCancelButton: true, confirmButtonText: 'Continuar conectado', cancelButtonText: 'Sair agora',
+      allowOutsideClick: false, allowEscapeKey: false,
+      didOpen: () => { relogioAviso = setInterval(() => { const el = document.getElementById('sw-resta'); if (el) el.textContent = mmss(Math.max(0, resta())); }, 500); },
+      willClose: () => clearInterval(relogioAviso),
+    }).then(r => {
+      if (encerrado) return;
+      avisando = false;
+      if (r.isConfirmed) renovarAgora();
+      else if (r.dismiss === Swal.DismissReason.cancel) expirar();
+    });
+  }
+  const eventos = ['pointerdown', 'mousemove', 'keydown', 'wheel', 'scroll', 'touchstart'];
+  eventos.forEach(ev => addEventListener(ev, atividade, { capture: true, passive: true }));
+  const relogio = setInterval(() => {
+    if (encerrado) return;
+    const r = resta();
+    if (r <= 0) return expirar();
+    if (r <= AVISO && !avisando) mostrarAviso();
+    else if (avisando && r > AVISO && Swal.isVisible()) { avisando = false; Swal.close(); }   // usou o sistema em outra aba
+  }, 1000);
+  renovarAgora();                                   // abrir ou recarregar a tela conta como uso
+  _vigia = { parar() { encerrado = true; clearInterval(relogio); clearInterval(relogioAviso); eventos.forEach(ev => removeEventListener(ev, atividade, { capture: true })); } };
+}
+
 // =========================================================================== Gestao TI: sessao, topo e modulos
 let EU = null;
 const ICONES = {
@@ -130,6 +197,7 @@ const ICONES = {
 };
 const icone = (nome, tam = 22) => `<svg width="${tam}" height="${tam}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONES[nome] || ''}</svg>`;
 const irParaInicio = () => { location.href = '/'; };
+const textoMinutos = n => `${n} minuto${Number(n) === 1 ? '' : 's'}`;
 
 // Carrega a sessao; sem sessao (ou sem o modulo) volta para a tela inicial
 async function exigirSessao(...modulosAceitos) {
@@ -139,11 +207,16 @@ async function exigirSessao(...modulosAceitos) {
   return EU;
 }
 async function sair() {
+  pararVigiaInatividade();
   await api('/api/auth/logout', { method: 'POST' }).catch(() => {});
   irParaInicio();
 }
 // Cabecalho padrao das paginas dos modulos: [voltar] [logo] Gestão TI / (grupo) / Módulo ............ [avatar]
 function montarTopo(titulo, iconeModulo, voltar = null) {
+  if (!_vigia) vigiarInatividade({ minutos: EU.inatividade_minutos, renovar: '/api/auth/renovar', aoExpirar: async () => {
+    await fetch('/api/auth/logout?inatividade=true', { method: 'POST', credentials: 'same-origin' }).catch(() => {});
+    location.href = '/?inatividade=1';
+  } });
   const el = document.getElementById('topo');
   el.className = 'topo topo-modulo';
   // Voltar: volta para a pagina anterior do sistema; se veio de fora (favorito, link), vai para a pagina "pai"

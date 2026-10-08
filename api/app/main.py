@@ -329,6 +329,7 @@ def config_publica() -> dict:
         "horas_maximas": config.HORAS_MAXIMAS, "personalizado_usuario": config.PERSONALIZADO_USUARIO,
         "horas_maximas_usuario": config.HORAS_MAXIMAS_USUARIO, "permitir_indeterminado": config.PERMITIR_INDETERMINADO,
         "ad_habilitado": config.AD_HABILITADO, "busca_ad": bool(config.AD_BIND_USUARIO and config.AD_BIND_SENHA),
+        "inatividade_minutos": config.SESSAO_INATIVIDADE_MINUTOS,
     }
 
 
@@ -363,6 +364,15 @@ def portal_login(dados: Login, request: Request, response: Response) -> dict:
                         httponly=True, samesite="strict", secure=config.COOKIE_SEGURO,
                         max_age=auth.SESSAO_USUARIO_HORAS * 3600)
     return {"login": usuario["usuario"], "nome": usuario["nome"]}
+
+
+@app.post("/api/portal/renovar")
+def portal_renovar(response: Response, sessao: str | None = Cookie(default=None, alias=auth.COOKIE_USUARIO)) -> dict:
+    """Mesmo que /api/auth/renovar, para o portal do Wi-Fi."""
+    dados = auth.usuario_atual(sessao)
+    response.set_cookie(auth.COOKIE_USUARIO, auth.token_usuario(dados["login"], dados["nome"], dados.get("email"), dados.get("ini")),
+                        httponly=True, samesite="strict", secure=config.COOKIE_SEGURO, max_age=auth.SESSAO_USUARIO_HORAS * 3600)
+    return {"ok": True, "inatividade_minutos": config.SESSAO_INATIVIDADE_MINUTOS}
 
 
 @app.post("/api/portal/logout")
@@ -586,14 +596,36 @@ def admin_login(dados: Login, request: Request, response: Response) -> dict:
 
 
 @app.post("/api/auth/logout")
-def admin_logout(response: Response, sessao: str | None = Cookie(default=None, alias=auth.COOKIE_ADMIN)) -> dict:
+def admin_logout(response: Response, inatividade: bool = False,
+                 sessao: str | None = Cookie(default=None, alias=auth.COOKIE_ADMIN)) -> dict:
     try:
         quem = auth.admin_atual(sessao)
         auditoria.registrar("logout", quem.usuario, "Saiu da Gestão TI")
-    except HTTPException:
-        pass
+    except HTTPException as erro:
+        # Encerrada por inatividade: registra quem era (o cookie ainda tem a assinatura valida)
+        if inatividade and erro.detail == auth.MSG_INATIVIDADE:
+            try:
+                dados = auth._ser_admin.loads(sessao, max_age=config.SESSAO_HORAS * 3600)
+                with SessionLocal() as s:
+                    a = s.get(Administrador, dados.get("id"))
+                    if a:
+                        auditoria.registrar("sessao_expirada", a.usuario,
+                                            f"Sessão encerrada por inatividade ({config.SESSAO_INATIVIDADE_MINUTOS} min sem uso)")
+            except Exception:  # noqa: BLE001 - registro e so informativo
+                pass
     response.delete_cookie(auth.COOKIE_ADMIN)
     return {"ok": True}
+
+
+@app.post("/api/auth/renovar")
+def admin_renovar(response: Response, sessao: str | None = Cookie(default=None, alias=auth.COOKIE_ADMIN)) -> dict:
+    """A tela chama quando a pessoa usa o sistema: reemite o cookie e zera o contador de inatividade.
+    As atualizacoes automaticas das telas NAO chamam esta rota, entao nao mantem a sessao viva sozinhas."""
+    auth.admin_atual(sessao)                       # valida tudo (ativo, finalizada, inatividade, teto)
+    dados = auth.ler_sessao_admin(sessao)
+    response.set_cookie(auth.COOKIE_ADMIN, auth.token_admin(dados["id"], dados.get("ini")), httponly=True,
+                        samesite="strict", secure=config.COOKIE_SEGURO, max_age=config.SESSAO_HORAS * 3600)
+    return {"ok": True, "inatividade_minutos": config.SESSAO_INATIVIDADE_MINUTOS}
 
 
 @app.get("/api/auth/eu")
@@ -603,7 +635,8 @@ def admin_eu(admin: Administrador = auth.AdminDep) -> dict:
             "grupos": modulos.grupos(),
             # Modulos que a pessoa ve na tela inicial, mas bloqueados, ate a TI liberar (so para quem nao e da TI)
             "admin_geral": auth.eh_admin_geral(admin), "pode_conceder": auth.pode_conceder(admin),
-            "aguardando": [] if (auth.eh_ti(admin) or admin.modulos) else modulos.aguardando()}
+            "aguardando": [] if (auth.eh_ti(admin) or admin.modulos) else modulos.aguardando(),
+            "inatividade_minutos": config.SESSAO_INATIVIDADE_MINUTOS}
 
 
 # =========================================================================== painel: solicitacoes

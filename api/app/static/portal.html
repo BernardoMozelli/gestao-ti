@@ -79,7 +79,7 @@ const params = new URLSearchParams(location.search);
 const atalho = (params.get('h') || '').trim();
 let estado = null, timer = null;
 
-const voltarLogin = () => { clearInterval(timer); $('#tela-app').classList.add('oculto'); $('#tela-login').classList.remove('oculto'); };
+const voltarLogin = () => { clearInterval(timer); pararVigiaInatividade(); $('#tela-app').classList.add('oculto'); $('#tela-login').classList.remove('oculto'); };
 const chamar = (c, o) => api(c, o, voltarLogin);
 
 ligarLogin($('#form-login'), async (usuario, senha) => {
@@ -103,6 +103,11 @@ async function abrir() {
   }
   clearInterval(timer);
   timer = setInterval(() => { if (!document.hidden && !Swal.isVisible()) carregar().catch(() => {}); }, 20000);
+  vigiarInatividade({ minutos: CONFIG.inatividade_minutos, renovar: '/api/portal/renovar', aoExpirar: async () => {
+    await api('/api/portal/logout', { method: 'POST' }).catch(() => {});
+    voltarLogin();
+    Swal.fire({ icon: 'info', title: 'Sessão encerrada', text: `Sua sessão foi encerrada por inatividade (${textoMinutos(CONFIG.inatividade_minutos)} sem uso). Entre novamente.`, confirmButtonText: 'Entendi' });
+  } });
 }
 
 async function carregar() {

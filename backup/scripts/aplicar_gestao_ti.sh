@@ -97,9 +97,12 @@ if [ -z "$(valor DB_PASSWORD)" ]; then
          sudo nano $DESTINO/.env
        e rode este script de novo."
 fi
-API_URL="$(valor PAINEL_URL)"
+# Endereco que as estacoes usam para consultar a API: AGENTE_URL (direto no servidor, sem proxy);
+# se estiver vazio, usa o PAINEL_URL
+API_URL="$(valor AGENTE_URL)"
+[ -n "$API_URL" ] || API_URL="$(valor PAINEL_URL)"
 AGENT_KEY="$(valor AGENT_KEY)"
-[ -n "$API_URL" ] && [ -n "$AGENT_KEY" ] || erro "PAINEL_URL ou AGENT_KEY vazio no .env"
+[ -n "$API_URL" ] && [ -n "$AGENT_KEY" ] || erro "AGENTE_URL/PAINEL_URL ou AGENT_KEY vazio no .env"
 
 msg "Gerando scripts das estacoes em $DESTINO/saida-windows"
 rm -rf saida-windows && mkdir -p saida-windows

@@ -37,6 +37,7 @@ ACOES = {
     "login": ("acesso", "Entrou na Gestão TI"),
     "login_falhou": ("acesso", "Falha ao entrar na Gestão TI"),
     "logout": ("acesso", "Saiu da Gestão TI"),
+    "sessao_expirada": ("acesso", "Sessão encerrada por inatividade"),
     "admin_ad_primeiro_acesso": ("acesso", "Primeiro acesso (AD)"),
     "acesso_negado": ("acesso", "Tentou abrir módulo sem permissão"),
     # usuarios

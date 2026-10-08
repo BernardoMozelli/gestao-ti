@@ -44,7 +44,13 @@
 </section>
 
 <script>
-const mostrarLogin = () => { $('#tela-app').classList.add('oculto'); $('#tela-login').classList.remove('oculto'); };
+const mostrarLogin = () => {
+  $('#tela-app').classList.add('oculto'); $('#tela-login').classList.remove('oculto');
+  if (new URLSearchParams(location.search).has('inatividade')) {
+    history.replaceState(null, '', location.pathname);
+    Swal.fire({ icon: 'info', title: 'Sessão encerrada', text: `Sua sessão foi encerrada por inatividade (${textoMinutos(CONFIG.inatividade_minutos)} sem uso). Entre novamente.`, confirmButtonText: 'Entendi' });
+  }
+};
 
 ligarLogin($('#form-login'), async (usuario, senha) => {
   await api('/api/auth/login', { method: 'POST', body: JSON.stringify({ usuario, senha }) });

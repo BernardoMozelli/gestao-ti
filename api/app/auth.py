@@ -87,17 +87,46 @@ def limpar_falhas(chave: str) -> None:
 
 
 # --------------------------------------------------------------------------- painel da TI
-def token_admin(admin_id: int) -> str:
-    return _ser_admin.dumps({"id": admin_id})
+MSG_INATIVIDADE = "Sua sessão expirou por inatividade. Entre novamente."
+
+
+def _validade(ser, sessao: str, horas_max: int) -> tuple[dict, object]:
+    """Confere o cookie: assinatura, teto de horas desde o login e inatividade desde a ultima renovacao.
+    O cookie e reemitido (renovado) so quando a pessoa usa a tela, entao o horario dele = ultima atividade."""
+    try:
+        dados, emitido = ser.loads(sessao, max_age=horas_max * 3600, return_timestamp=True)
+    except (BadSignature, SignatureExpired):
+        raise HTTPException(401, "Sessão expirada. Entre novamente.")
+    agora_s = time.time()
+    if agora_s - float(dados.get("ini") or emitido.timestamp()) > horas_max * 3600:
+        raise HTTPException(401, "Sessão expirada. Entre novamente.")
+    minutos = config.SESSAO_INATIVIDADE_MINUTOS
+    if minutos > 0 and agora_s - emitido.timestamp() > minutos * 60:
+        raise HTTPException(401, MSG_INATIVIDADE)
+    return dados, emitido
+
+
+def token_admin(admin_id: int, inicio: float | None = None) -> str:
+    return _ser_admin.dumps({"id": admin_id, "ini": int(inicio or time.time())})
+
+
+def ler_sessao_admin(sessao: str | None) -> dict:
+    """Dados do cookie do painel (id e horario do login), ja validado. Usado para renovar a sessao."""
+    if not sessao:
+        raise HTTPException(401, "Sessão expirada. Entre novamente.")
+    return _validade(_ser_admin, sessao, config.SESSAO_HORAS)[0]
+
+
+def ler_sessao_usuario(sessao: str | None) -> dict:
+    if not sessao:
+        raise HTTPException(401, "Sessão expirada. Entre novamente.")
+    return _validade(_ser_usuario, sessao, SESSAO_USUARIO_HORAS)[0]
 
 
 def admin_atual(sessao: str | None = Cookie(default=None, alias=COOKIE_ADMIN)) -> Administrador:
     if not sessao:
         raise HTTPException(401, "Sessão expirada. Entre novamente.")
-    try:
-        dados, emitido = _ser_admin.loads(sessao, max_age=config.SESSAO_HORAS * 3600, return_timestamp=True)
-    except (BadSignature, SignatureExpired):
-        raise HTTPException(401, "Sessão expirada. Entre novamente.")
+    dados, emitido = _validade(_ser_admin, sessao, config.SESSAO_HORAS)
     with SessionLocal() as s:
         admin = s.get(Administrador, dados.get("id"))
         if not admin or not admin.ativo:
@@ -144,17 +173,14 @@ def exigir_modulo(*nomes: str):
 
 
 # --------------------------------------------------------------------------- portal do usuario
-def token_usuario(login: str, nome: str, email: str | None) -> str:
-    return _ser_usuario.dumps({"login": login, "nome": nome, "email": email})
+def token_usuario(login: str, nome: str, email: str | None, inicio: float | None = None) -> str:
+    return _ser_usuario.dumps({"login": login, "nome": nome, "email": email, "ini": int(inicio or time.time())})
 
 
 def usuario_atual(sessao: str | None = Cookie(default=None, alias=COOKIE_USUARIO)) -> dict:
     if not sessao:
         raise HTTPException(401, "Sessão expirada. Entre novamente.")
-    try:
-        dados, emitido = _ser_usuario.loads(sessao, max_age=SESSAO_USUARIO_HORAS * 3600, return_timestamp=True)
-    except (BadSignature, SignatureExpired):
-        raise HTTPException(401, "Sessão expirada. Entre novamente.")
+    dados, emitido = _validade(_ser_usuario, sessao, SESSAO_USUARIO_HORAS)
     with SessionLocal() as s:
         if sessao_finalizada(s, dados.get("login"), emitido):
             raise HTTPException(401, MSG_FINALIZADA)

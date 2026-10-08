@@ -24,7 +24,9 @@ AGENT_KEY = _env("AGENT_KEY")
 
 # Assinatura dos cookies de sessao do painel
 SECRET_KEY = _env("SECRET_KEY")
-SESSAO_HORAS = int(_env("SESSAO_HORAS", "12"))
+SESSAO_HORAS = int(_env("SESSAO_HORAS", "12"))   # tempo maximo de uma sessao, mesmo com uso continuo
+# Sessao expira apos N minutos sem uso (painel e portal do Wi-Fi). 0 = desliga a expiracao por inatividade
+SESSAO_INATIVIDADE_MINUTOS = int(_env("SESSAO_INATIVIDADE_MINUTOS", "30"))
 COOKIE_SEGURO = _env("COOKIE_SEGURO", "false").lower() == "true"  # true quando atras de HTTPS
 
 # Primeiro administrador (criado so se nao existir nenhum)

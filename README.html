@@ -113,45 +113,18 @@ blockquote p { margin: 4px 0; }
   <button class="menu-btn" id="menu-btn" type="button">Sumário</button>
 </div></header>
 
-<div class="capa">
-  <div class="caixa">
-    <div class="orgao">Prefeitura Municipal de Santa Luzia</div>
-
-    <h1>Gestão TI — Prefeitura Municipal de Santa Luzia</h1>
-
-    <div class="autor">
-      <span class="iniciais">BM</span>
-      <div>
-        <small>Autor do sistema e da documentação</small>
-        <b>Bernardo Mozelli de Medeiros</b>
-        <small class="instituicao">
-          Secretaria de Planejamento, Ciência, Tecnologia e Inovação
-        </small>
-      </div>
-    </div>
-
-    <div class="intro">
-      <p>
-        Central de gestão da equipe de Tecnologia da Informação da Prefeitura de Santa Luzia/MG.
-        Reúne, numa única aplicação web com login pelo Active Directory, as ferramentas do dia a dia da TI:
-        liberação do Wi-Fi nos computadores, senhas dos visitantes do Wi-Fi, gestão das contas do AD,
-        disparo de e-mails em lote, configurações e um registro completo de tudo o que é feito.
-      </p>
-
-      <p>
-        Este sistema substitui o antigo <strong>pmsl-wifi-aprovacao</strong>: o módulo
-        <em>Wi-Fi no computador</em> é a evolução dele, e o script
-        <code>migrar_de_wifiaprovacao.sh</code> faz a troca no servidor copiando todos os dados.
-      </p>
-    </div>
-
-    <div class="selos">
-      <span class="selo laranja">Documentação técnica</span>
-      <span class="selo">Atualizada em 07/10/2026</span>
-      <span class="selo">24 seções</span>
-    </div>
-  </div>
-</div>
+<div class="capa"><div class="caixa">
+  <div class="orgao">Prefeitura Municipal de Santa Luzia</div>
+  <h1>Gestão TI — Prefeitura Municipal de Santa Luzia</h1>
+  <div class="autor"><span class="iniciais">BM</span><div><small>Autor do sistema e da documentação</small><b>Bernardo Mozelli de Medeiros</b></div></div>
+  <div class="intro"><p>Central de gestão da equipe de Tecnologia da Informação da Prefeitura de Santa Luzia/MG.
+Reúne, numa única aplicação web com login pelo Active Directory, as ferramentas do dia a dia da TI:
+liberação do Wi-Fi nos computadores, senhas dos visitantes do Wi-Fi, gestão das contas do AD,
+disparo de e-mails em lote, configurações e um registro completo de tudo o que é feito.</p>
+<p>Este sistema substitui o antigo <strong>pmsl-wifi-aprovacao</strong>: o módulo <em>Wi-Fi no computador</em> é a evolução
+dele, e o script <code>migrar_de_wifiaprovacao.sh</code> faz a troca no servidor copiando todos os dados.</p></div>
+  <div class="selos"><span class="selo laranja">Documentação técnica</span><span class="selo">Atualizada em 08/10/2026</span><span class="selo">24 seções</span></div>
+</div></div>
 
 <div class="corpo">
   <nav class="menu" id="menu"><div class="rotulo">Sumário</div><a href="#s1"><span class="num">1</span><span>Visão geral</span></a><a href="#s2"><span class="num">2</span><span>Tecnologias utilizadas</span></a><a href="#s3"><span class="num">3</span><span>Arquitetura</span></a><a href="#s4"><span class="num">4</span><span>Estrutura de pastas</span></a><a href="#s5"><span class="num">5</span><span>Módulos</span></a><a href="#s6"><span class="num">6</span><span>Acesso, permissões e adm geral</span></a><a href="#s7"><span class="num">7</span><span>Gestão de Usuários</span></a><a href="#s8"><span class="num">8</span><span>Rede Sem Fio → Wi-Fi no computador</span></a><a href="#s9"><span class="num">9</span><span>Rede Sem Fio → Wi-Fi Visitante</span></a><a href="#s10"><span class="num">10</span><span>E-mails em lote</span></a><a href="#s11"><span class="num">11</span><span>Configurações</span></a><a href="#s12"><span class="num">12</span><span>Logs e auditoria</span></a><a href="#s13"><span class="num">13</span><span>Active Directory</span></a><a href="#s14"><span class="num">14</span><span>Variáveis do <code>.env</code></span></a><a href="#s15"><span class="num">15</span><span>Instalação local (testes)</span></a><a href="#s16"><span class="num">16</span><span>Subida no servidor (troca do sistema antigo)</span></a><a href="#s17"><span class="num">17</span><span>Atualização, backup e restauração</span></a><a href="#s18"><span class="num">18</span><span>Endereço gestaoti e proxy reverso</span></a><a href="#s19"><span class="num">19</span><span>Estações Windows (GPO)</span></a><a href="#s20"><span class="num">20</span><span>Endereços das telas e da API</span></a><a href="#s21"><span class="num">21</span><span>Banco de dados</span></a><a href="#s22"><span class="num">22</span><span>Segurança</span></a><a href="#s23"><span class="num">23</span><span>Solução de problemas</span></a><a href="#s24"><span class="num">24</span><span>Comandos úteis</span></a></nav>
@@ -611,14 +584,16 @@ O script usa <code>quser</code> para achar as sessões daquele usuário, avisa c
 (outras pessoas logadas no mesmo computador não são afetadas) e informa o resultado ao servidor
 (<code>/api/agente/comando/{id}/resultado</code>): <strong>ok</strong>, <strong>nao_logado</strong> ou <strong>erro</strong>. Pedido entregue sem resposta é entregue de novo
 depois de 10 minutos; pedido não entregue em <strong>12 horas</strong> (computador desligado) é descartado.</p>
-<p><strong>Cuidados</strong>
-- Só funciona nas estações com o script desta versão (procure <code>Executar-Comandos</code> no <code>C:\ProgramData\PMSL\wlan-filter.ps1</code>).
+<p><strong>Cuidados</strong></p>
+<ul>
+<li>Só funciona nas estações com o script desta versão (procure <code>Executar-Comandos</code> no <code>C:\ProgramData\PMSL\wlan-filter.ps1</code>).
   Pedidos feitos para máquinas com o script antigo ficam esperando e são <strong>executados quando o script novo chegar</strong>, dentro
   das 12 horas. Para cancelar pedidos pendentes:
-  <code>sudo docker exec gestao-ti-db psql -U gestao gestao_ti -c "update comandos_estacao set executado_em = now(), resultado = 'cancelado' where executado_em is null;"</code>
-- "Logado agora no Windows" vale por até 30 minutos depois da última consulta do computador. Se a pessoa trocou de máquina,
-  as duas podem aparecer: marque só a máquina atual.
-- Usa <code>quser</code>, <code>msg</code> e <code>logoff</code>, que existem no Windows 10/11 Pro e Enterprise (não no Home).</p>
+  <code>sudo docker exec gestao-ti-db psql -U gestao gestao_ti -c "update comandos_estacao set executado_em = now(), resultado = 'cancelado' where executado_em is null;"</code></li>
+<li>"Logado agora no Windows" vale por até 30 minutos depois da última consulta do computador. Se a pessoa trocou de máquina,
+  as duas podem aparecer: marque só a máquina atual.</li>
+<li>Usa <code>quser</code>, <code>msg</code> e <code>logoff</code>, que existem no Windows 10/11 Pro e Enterprise (não no Home).</li>
+</ul>
 <p>Regras: ninguém finaliza a própria sessão por aqui (use <strong>Sair</strong>), e só o adm geral finaliza a sessão de outro adm geral.
 Pedido, execução e resultado ficam nos <strong>Logs</strong> e na aba <strong>Acessos e alterações</strong>.</p>
 <p>Acompanhar os pedidos no servidor:
@@ -651,11 +626,13 @@ Pedido, execução e resultado ficam nos <strong>Logs</strong> e na aba <strong>
 <li><strong>Avisos</strong> de novos pedidos por Telegram e/ou WhatsApp (Evolution API), se configurados no <code>.env</code>.</li>
 </ul>
 <h3>Como o portal identifica o computador</h3>
-<p>Nesta ordem:
-1. pelo IP de quem está acessando (informado pelo script da GPO);
-2. pelo computador em que o login do AD está logado agora (funciona mesmo atrás do proxy de navegação);
-3. pelo nome no atalho (<code>?h=%ComputerName%</code>);
-4. pelo DNS reverso (PTR), se <code>DETECTAR_POR_DNS=true</code>.</p>
+<p>Nesta ordem:</p>
+<ol>
+<li>pelo IP de quem está acessando (informado pelo script da GPO);</li>
+<li>pelo computador em que o login do AD está logado agora (funciona mesmo atrás do proxy de navegação);</li>
+<li>pelo nome no atalho (<code>?h=%ComputerName%</code>);</li>
+<li>pelo DNS reverso (PTR), se <code>DETECTAR_POR_DNS=true</code>.</li>
+</ol>
 <p>Se nada resolver, o portal pede para digitar o nome; esses pedidos aparecem com a etiqueta <strong>nome digitado</strong>.</p>
 <p><strong>Acesso por proxy (ex.: <code>wifiaprovacao.santaluzia.mg.gov.br</code>).</strong> Quando o acesso chega por um proxy que não está em
 <code>FORWARDED_ALLOW_IPS</code>, todo mundo aparece com o IP do proxy. O sistema percebe isso (a requisição traz <code>X-Forwarded-For</code>)
@@ -993,10 +970,12 @@ Nesse caso, use a conta acima.</p>
 </tr>
 </tbody>
 </table>
-<p><strong>Delegação</strong> (Active Directory Users and Computers → botão direito na OU dos usuários → <strong>Delegate Control…</strong>):
-1. <strong>Reset user passwords and force password change at next logon</strong>.
-2. <strong>Create a custom task → User objects → Write lockoutTime</strong> (desbloquear).
-3. <strong>Create a custom task → User objects → Write userAccountControl</strong> (reativar).</p>
+<p><strong>Delegação</strong> (Active Directory Users and Computers → botão direito na OU dos usuários → <strong>Delegate Control…</strong>):</p>
+<ol>
+<li><strong>Reset user passwords and force password change at next logon</strong>.</li>
+<li><strong>Create a custom task → User objects → Write lockoutTime</strong> (desbloquear).</li>
+<li><strong>Create a custom task → User objects → Write userAccountControl</strong> (reativar).</li>
+</ol>
 <p><strong>Criptografia obrigatória para senha:</strong> o AD só aceita troca de senha por LDAPS ou StartTLS. Os DCs precisam de certificado
 (por exemplo, emitido pela CA do AD — AD CS). <code>AD_VALIDAR_CERTIFICADO=true</code> exige certificado confiável.</p>
 <h3>Teste pela linha de comando</h3>
@@ -1109,7 +1088,12 @@ Cada execução conta como tentativa de login no AD: não repita com senha errad
 <tr>
 <td><code>SESSAO_HORAS</code></td>
 <td><code>12</code></td>
-<td>Duração da sessão</td>
+<td>Tempo máximo de uma sessão, mesmo com uso contínuo</td>
+</tr>
+<tr>
+<td><code>SESSAO_INATIVIDADE_MINUTOS</code></td>
+<td><code>30</code></td>
+<td>Encerra a sessão após N minutos sem uso (painel e portal do Wi-Fi), com aviso 2 minutos antes. <code>0</code> desliga</td>
 </tr>
 <tr>
 <td><code>FORWARDED_ALLOW_IPS</code></td>
@@ -1564,11 +1548,11 @@ E no servidor, cada máquina deve aparecer com 4 ou 5 consultas em 5 minutos:
 <tbody>
 <tr>
 <td><code>/api/auth</code></td>
-<td><code>POST login</code>, <code>POST logout</code>, <code>GET eu</code> (usuário, módulos, <code>admin_geral</code>, <code>pode_conceder</code>, <code>aguardando</code>)</td>
+<td><code>POST login</code>, <code>POST logout</code>, <code>POST renovar</code> (renova a sessão por uso), <code>GET eu</code> (usuário, módulos, <code>admin_geral</code>, <code>pode_conceder</code>, <code>aguardando</code>, <code>inatividade_minutos</code>)</td>
 </tr>
 <tr>
 <td><code>/api/portal</code></td>
-<td><code>login</code>, <code>logout</code>, <code>estado</code>, <code>solicitacoes</code>, <code>solicitacoes/{id}/cancelar</code></td>
+<td><code>login</code>, <code>logout</code>, <code>renovar</code>, <code>estado</code>, <code>solicitacoes</code>, <code>solicitacoes/{id}/cancelar</code></td>
 </tr>
 <tr>
 <td><code>/api/agente/liberacao</code></td>
@@ -1661,6 +1645,14 @@ E no servidor, cada máquina deve aparecer com 4 ou 5 consultas em 5 minutos:
 </table></section><section class="cartao" id="s22"><h2><span class="num">22</span>Segurança</h2><ul>
 <li><strong>Senhas:</strong> nunca gravadas nos logs. Locais usam bcrypt; segredos de integração usam Fernet (chave derivada de <code>SECRET_KEY</code>).</li>
 <li><strong>Sessão:</strong> cookie assinado, <code>HttpOnly</code>, <code>SameSite</code>; <code>Secure</code> quando <code>COOKIE_SEGURO=true</code>.</li>
+<li><strong>Expiração por inatividade:</strong> depois de <code>SESSAO_INATIVIDADE_MINUTOS</code> (padrão 30) sem uso, a sessão do painel e a do portal
+  do Wi-Fi são encerradas. Só conta uso real da tela (mouse, teclado, toque, rolagem): as atualizações automáticas das telas não
+  mantêm a sessão viva. Dois minutos antes aparece o aviso <strong>"Sua sessão vai expirar"</strong>, com contagem regressiva e os botões
+  <strong>Continuar conectado</strong> e <strong>Sair agora</strong>; ao expirar, a pessoa volta para o login com a mensagem "Sessão encerrada por
+  inatividade", e o encerramento fica nos <strong>Logs</strong> ("Sessão encerrada por inatividade"). O controle vale para todas as abas do
+  mesmo navegador: usar o sistema numa aba mantém as outras ativas. Quem confere é o servidor (o cookie é renovado em
+  <code>POST /api/auth/renovar</code> e <code>POST /api/portal/renovar</code> só quando há uso), então fechar ou travar a página não estende a sessão.
+  <code>SESSAO_HORAS</code> continua sendo o teto, mesmo com uso contínuo.</li>
 <li><strong>Login:</strong> bloqueio de 10 minutos após 5 senhas erradas no mesmo IP; todas as tentativas registradas.</li>
 <li><strong>Ninguém se libera sozinho no Wi-Fi:</strong> o portal só cria o pedido; a liberação exige decisão da TI.</li>
 <li><strong><code>AGENT_KEY</code>:</strong> fica no script do NETLOGON (legível pelo domínio). Com ela só se consulta se um computador está liberado e

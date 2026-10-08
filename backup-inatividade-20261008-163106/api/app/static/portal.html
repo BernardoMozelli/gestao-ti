@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Acesso à Rede Sem Fio · Prefeitura de Santa Luzia</title>
+<link rel="stylesheet" href="/static/estilo.css">
+<script src="/static/sweetalert2.all.min.js"></script>
+<script src="/static/comum.js"></script>
+</head>
+<body>
+
+<section id="tela-login" class="login oculto">
+  <div class="marca">
+    <div data-logo></div>
+    <div class="orgao1" data-texto="orgao_linha1">Prefeitura Municipal de</div>
+    <div class="orgao2" data-texto="orgao_linha2">Santa Luzia</div>
+    <div class="sistema" data-texto="wifi_subtitulo">Sistema de Autorização de Acesso à Rede Sem Fio</div>
+  </div>
+  <div class="painel">
+    <form class="caixa" id="form-login" autocomplete="on">
+      <h1>Bem-vindo</h1>
+      <p class="sub">Entre com o seu usuário e senha da rede para solicitar acesso.</p>
+      <div class="campo"><label for="usuario">Usuário da rede</label>
+        <input class="entrada" id="usuario" name="usuario" placeholder="ex.: joaosilva" autocomplete="username" required></div>
+      <div class="campo"><label for="senha">Senha</label>
+        <div class="senha-caixa"><input class="entrada" id="senha" name="senha" type="password" autocomplete="current-password" required>
+          <button type="button" data-olho aria-label="Mostrar senha"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12Z"/><circle cx="12" cy="12" r="3"/></svg></button></div></div>
+      <button class="btn-entrar" type="submit"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3"/></svg>Entrar</button>
+      <div class="versao" data-texto="wifi_nome"></div>
+    </form>
+  </div>
+  <footer class="rodape" data-texto="rodape">Desenvolvido pela Secretaria de Planejamento, Ciência, Tecnologia e Inovação</footer>
+</section>
+
+<section id="tela-app" class="oculto">
+  <header class="topo"><div class="faixa">
+    <div data-logo></div>
+    <div class="titulos"><small><span data-texto="orgao_linha1">Prefeitura Municipal de</span> <span data-texto="orgao_linha2">Santa Luzia</span></small><strong data-texto="wifi_nome">Acesso à Rede Sem Fio</strong></div>
+    <div class="quem"><b id="nome-usuario"></b><span id="login-usuario"></span></div>
+    <button class="sair" id="btn-sair">Sair</button>
+  </div></header>
+
+  <main class="conteudo">
+    <div class="grade-2">
+      <section class="cartao">
+        <h2>Este computador</h2>
+        <p class="ajuda" id="pc-ajuda"></p>
+        <div id="pc-detectado" class="oculto"><div class="host-grande" id="pc-nome"></div></div>
+        <div id="pc-manual" class="campo oculto">
+          <label for="pc-entrada">Nome do computador</label>
+          <input class="entrada" id="pc-entrada" placeholder="ex.: ST-FKQ04N3" style="text-transform:uppercase">
+        </div>
+        <div id="situacao"></div>
+      </section>
+
+      <section class="cartao" id="cartao-pedido">
+        <h2>Solicitar liberação</h2>
+        <p class="ajuda">Durante a liberação, este computador poderá usar outras redes Wi-Fi além da rede da prefeitura. Ao fim do prazo, o bloqueio volta automaticamente.</p>
+        <form id="form-pedido" style="display:grid;gap:12px">
+          <div class="campo"><label for="motivo">Motivo</label>
+            <textarea class="entrada" id="motivo" maxlength="1000" placeholder="Explique por que precisa usar outra rede (mínimo 10 caracteres)" required></textarea></div>
+          <div class="campo"><label for="prazo">Por quanto tempo</label><select class="entrada" id="prazo"></select></div>
+          <div id="prazo-personalizado"></div>
+          <button class="btn primario" type="submit" style="padding:13px">Enviar solicitação</button>
+        </form>
+      </section>
+    </div>
+
+    <section style="margin-top:20px">
+      <h2 style="font-size:18px;margin:0 0 10px">Minhas solicitações</h2>
+      <div id="minhas" class="lista"></div>
+    </section>
+  </main>
+</section>
+
+<script>
+const params = new URLSearchParams(location.search);
+const atalho = (params.get('h') || '').trim();
+let estado = null, timer = null;
+
+const voltarLogin = () => { clearInterval(timer); $('#tela-app').classList.add('oculto'); $('#tela-login').classList.remove('oculto'); };
+const chamar = (c, o) => api(c, o, voltarLogin);
+
+ligarLogin($('#form-login'), async (usuario, senha) => {
+  await api('/api/portal/login', { method: 'POST', body: JSON.stringify({ usuario, senha }) });
+  abrir();
+});
+
+$('#btn-sair').addEventListener('click', async () => {
+  await api('/api/portal/logout', { method: 'POST' }).catch(() => {});
+  voltarLogin();
+});
+
+async function abrir() {
+  try { await carregar(); } catch { return voltarLogin(); }
+  $('#tela-login').classList.add('oculto');
+  $('#tela-app').classList.remove('oculto');
+  if (!$('#prazo').options.length) {
+    $('#prazo').innerHTML = opcoesPrazo(CONFIG.horas_permitidas, CONFIG.horas_permitidas[0], CONFIG.personalizado_usuario, false);
+    $('#prazo-personalizado').innerHTML = CONFIG.personalizado_usuario ? campoPersonalizado('prazo', CONFIG.horas_maximas_usuario) : '';
+    ligarPersonalizado('prazo');
+  }
+  clearInterval(timer);
+  timer = setInterval(() => { if (!document.hidden && !Swal.isVisible()) carregar().catch(() => {}); }, 20000);
+}
+
+async function carregar() {
+  estado = await chamar('/api/portal/estado' + (atalho ? `?h=${encodeURIComponent(atalho)}` : ''));
+  $('#nome-usuario').textContent = estado.usuario.nome;
+  $('#login-usuario').textContent = estado.usuario.login;
+  const pc = estado.computador;
+  $('#pc-detectado').classList.toggle('oculto', !pc.hostname);
+  $('#pc-manual').classList.toggle('oculto', !!pc.hostname);
+  if (pc.hostname) {
+    $('#pc-nome').textContent = pc.hostname;
+    $('#pc-ajuda').textContent = { detectado: 'Identificado automaticamente pela rede.', dns: 'Identificado pelo DNS da rede.', atalho: 'Identificado pelo atalho deste computador.' }[pc.fonte] || '';
+  } else {
+    $('#pc-ajuda').textContent = `Não foi possível identificar o computador automaticamente (IP ${pc.ip}). Informe o nome dele: aparece em Configurações → Sistema → Sobre, em "Nome do dispositivo".`;
+  }
+  renderSituacao(estado.atual);
+  renderMinhas(estado.minhas);
+}
+
+function renderSituacao(s) {
+  const el = $('#situacao');
+  const bloqueiaPedido = s && (s.status === 'pendente' || s.status === 'aprovada');
+  $('#cartao-pedido').classList.toggle('oculto', !!bloqueiaPedido);
+  if (!s) { el.innerHTML = '<div class="status-caixa info"><b>Rede da prefeitura</b>Não há liberação ativa para este computador.</div>'; return; }
+  const obs = s.observacao_ti ? `<br>Observação da TI: ${esc(s.observacao_ti)}` : '';
+  const quem = esc(s.usuario);
+  const mapa = {
+    pendente: `<div class="status-caixa pendente"><b>Aguardando a TI</b>Solicitação nº ${s.id} enviada por ${quem} em ${dataHora(s.criado_em)}. Esta página se atualiza sozinha.
+               ${s.usuario_login === estado.usuario.login ? `<div style="margin-top:10px"><button class="btn peq" onclick="cancelar(${s.id})">Cancelar solicitação</button></div>` : ''}</div>`,
+    aprovada: `<div class="status-caixa aprovada"><b>Liberado</b>${prazoTexto(s)}.<br>As outras redes aparecem em até 5 minutos.${obs}</div>`,
+    negada: `<div class="status-caixa negada"><b>Negado</b>A solicitação nº ${s.id} foi negada pela TI.${obs}</div>`,
+    revogada: `<div class="status-caixa revogada"><b>Bloqueado pela TI</b>A liberação nº ${s.id} foi encerrada em ${dataHora(s.bloqueado_em)}.${obs}</div>`,
+    expirada: `<div class="status-caixa info"><b>Liberação encerrada</b>O prazo da liberação nº ${s.id} terminou em ${dataHora(s.bloqueado_em || s.valido_ate)}.</div>`,
+    cancelada: `<div class="status-caixa info"><b>Rede da prefeitura</b>A última solicitação (nº ${s.id}) foi cancelada.</div>`,
+  };
+  el.innerHTML = mapa[s.status] || '';
+}
+
+function renderMinhas(lista) {
+  const el = $('#minhas');
+  if (!lista.length) { el.innerHTML = '<div class="vazio">Você ainda não fez nenhuma solicitação.</div>'; return; }
+  el.innerHTML = lista.map(s => `<article class="item">
+    <div class="topo-item"><span class="host">${esc(s.hostname)}</span><span class="tag ${s.status}">${NOMES_STATUS[s.status] || esc(s.status)}</span><span class="meta">nº ${s.id} · ${dataHora(s.criado_em)}</span></div>
+    <div class="texto">${esc(s.motivo)}</div>
+    <div class="meta"><span>Pedido: ${nomeHoras(s.horas_solicitadas)}</span>${s.status === 'aprovada' ? `<span>${prazoTexto(s)}</span>` : ''}${s.observacao_ti ? `<span>TI: ${esc(s.observacao_ti)}</span>` : ''}</div>
+  </article>`).join('');
+}
+
+$('#form-pedido').addEventListener('submit', async ev => {
+  ev.preventDefault();
+  const hostname = estado.computador.hostname || $('#pc-entrada').value.trim().toUpperCase();
+  const motivo = $('#motivo').value.trim();
+  if (!hostname) return Swal.fire({ icon: 'warning', title: 'Informe o nome do computador.' });
+  if (motivo.length < 10) return Swal.fire({ icon: 'warning', title: 'Descreva o motivo', text: 'Use pelo menos 10 caracteres.' });
+  const prazo = lerPrazo('prazo', CONFIG.horas_maximas_usuario);
+  if (prazo.erro) return Swal.fire({ icon: 'warning', title: 'Tempo personalizado', text: prazo.erro });
+  const r = await Swal.fire({ icon: 'question', title: 'Enviar solicitação?',
+    html: `Computador <b>${esc(hostname)}</b><br>${prazo.indeterminado ? 'Tempo indeterminado' : nomeHoras(prazo.horas)}`,
+    showCancelButton: true, confirmButtonText: 'Enviar', cancelButtonText: 'Voltar' });
+  if (!r.isConfirmed) return;
+  try {
+    const s = await chamar('/api/portal/solicitacoes', { method: 'POST', body: JSON.stringify({ hostname, motivo, ...prazo }) });
+    $('#motivo').value = '';
+    Swal.fire({ icon: 'success', title: `Solicitação nº ${s.id} enviada`, text: 'A TI foi avisada. Acompanhe a resposta nesta página.' });
+    carregar();
+  } catch (e) { erro(e); }
+});
+
+async function cancelar(id) {
+  const r = await Swal.fire({ icon: 'warning', title: 'Cancelar a solicitação?', showCancelButton: true, confirmButtonText: 'Cancelar solicitação', cancelButtonText: 'Voltar' });
+  if (!r.isConfirmed) return;
+  try { await chamar(`/api/portal/solicitacoes/${id}/cancelar`, { method: 'POST' }); toast('Solicitação cancelada.'); carregar(); } catch (e) { erro(e); }
+}
+
+LOGO_PADRAO = LOGO_WIFI;
+carregarMarca().then(abrir);
+</script>
+</body>
+</html>

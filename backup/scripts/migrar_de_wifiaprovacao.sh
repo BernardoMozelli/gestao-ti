@@ -104,8 +104,11 @@ INSERT INTO solicitacoes (${CMN[solicitacoes]})
 SELECT setval(pg_get_serial_sequence('solicitacoes', 'id'), GREATEST((SELECT COALESCE(MAX(id), 1) FROM solicitacoes), 1));
 -- Historico (registro de atividades), na ordem original
 INSERT INTO eventos ($EVE)
-  SELECT $EVE FROM m_eventos
-  WHERE solicitacao_id IS NULL OR solicitacao_id IN (SELECT id FROM solicitacoes) ORDER BY id;
+  SELECT $EVE FROM m_eventos m
+  WHERE (m.solicitacao_id IS NULL OR m.solicitacao_id IN (SELECT id FROM solicitacoes))
+    AND NOT EXISTS (SELECT 1 FROM eventos e WHERE e.acao = m.acao AND e.autor IS NOT DISTINCT FROM m.autor
+                    AND e.criado_em = m.criado_em AND e.solicitacao_id IS NOT DISTINCT FROM m.solicitacao_id)
+  ORDER BY m.id;
 INSERT INTO eventos (acao, autor, detalhe, criado_em)
   VALUES ('configuracao_alterada', 'migracao', 'Dados copiados do sistema antigo do Wi-Fi (wifiaprovacao)', now());
 -- Computadores: o que a Gestao TI ja viu e mais novo e fica
