@@ -69,6 +69,7 @@
           <div class="campo"><label for="m-remetente">Nome do remetente</label><input class="entrada" id="m-remetente"></div>
           <div class="campo"><label for="m-responder">Responder para (opcional)</label><input class="entrada" id="m-responder" placeholder="ex.: ti@santaluzia.mg.gov.br"></div>
         </div>
+        <div class="campo campo-para" id="m-para"></div>
         <div class="campo"><label for="m-assunto">Assunto</label><input class="entrada" id="m-assunto" maxlength="300"></div>
         <div class="campo"><label>Mensagem</label>
           <div>
@@ -132,6 +133,7 @@
       <section class="cartao pilha etapa-painel" data-etapa="4">
         <h2>Revisar e enviar</h2>
         <div id="r-resumo" class="item" style="border:0;padding:0"></div>
+        <div class="campo campo-para" id="r-para"></div>
         <div class="campo"><label>Como a mensagem vai chegar (exemplo com o primeiro destinatário)</label><iframe class="previa" id="r-previa" sandbox="allow-same-origin"></iframe></div>
       </section>
 
@@ -377,6 +379,42 @@ function previaBlocos(atualizarQtd = true) {
   $('#b-estimativa').textContent = `Cada bloco leva cerca de ${minBloco} min para sair.` + (manual ? ' Os blocos seguintes esperam você liberar.' : ` Tempo total estimado: ${totalMin >= 60 ? Math.floor(totalMin / 60) + ' h ' : ''}${totalMin % 60} min.`);
 }
 
+// ---------------------------------------------------------------- campo "Para": quem vai receber (etapas 2 e 4)
+const PARA_MAX_NA_TELA = 300;   // listas grandes: mostra ate 300 por vez (a busca encontra qualquer um)
+function renderPara(id) {
+  const el = $('#' + id), d = destinatarios();
+  const estado = el._estado || (el._estado = { aberto: false, busca: '' });
+  const origem = ORIGEM === 'ad' ? 'usuários do AD selecionados' : `lista ${esc(LISTA_NOME || '')}`;
+  el.innerHTML = `<div class="para-topo">
+      <label>Para <span class="para-total">${numero(d.length)} destinatário${d.length === 1 ? '' : 's'}</span> <span class="para-origem">${origem}</span></label>
+      <span class="para-acoes">
+        ${d.length > 8 ? `<input class="entrada para-busca" type="search" placeholder="Buscar nome ou e-mail" value="${esc(estado.busca)}" aria-label="Buscar destinatário">` : ''}
+        <button type="button" class="btn peq" data-para="copiar" title="Copiar todos os e-mails, um por linha">Copiar e-mails</button>
+        ${d.length > 8 ? `<button type="button" class="btn peq" data-para="abrir">${estado.aberto ? 'Recolher' : 'Ver todos'}</button>` : ''}
+      </span></div>
+    <div class="para-lista ${estado.aberto ? 'aberta' : ''}"></div>
+    <p class="ajuda para-rodape"></p>`;
+  const lista = el.querySelector('.para-lista'), rodape = el.querySelector('.para-rodape');
+  const desenhar = () => {
+    const q = estado.busca.trim().toLowerCase();
+    const achados = q ? d.filter(p => p.email.toLowerCase().includes(q) || (p.nome || '').toLowerCase().includes(q)) : d;
+    const limite = estado.aberto || q ? PARA_MAX_NA_TELA : 8;
+    lista.innerHTML = achados.slice(0, limite).map(p => `<span class="para-chip" title="${esc(p.email)}">${p.nome ? `<b>${esc(p.nome)}</b> ` : ''}&lt;${esc(p.email)}&gt;</span>`).join('')
+      || '<span class="para-vazio">Nenhum destinatário encontrado.</span>';
+    const falta = achados.length - Math.min(limite, achados.length);
+    rodape.textContent = q ? `${numero(achados.length)} encontrado${achados.length === 1 ? '' : 's'}${falta > 0 ? ` (mostrando ${numero(limite)}; refine a busca)` : ''}.`
+      : falta > 0 ? (estado.aberto ? `Mostrando ${numero(limite)} de ${numero(d.length)}. Use a busca para achar um destinatário específico.` : `e mais ${numero(falta)}.`) : '';
+  };
+  desenhar();
+  el.querySelector('.para-busca')?.addEventListener('input', ev => { estado.busca = ev.target.value; desenhar(); });
+  el.querySelector('[data-para=abrir]')?.addEventListener('click', () => { estado.aberto = !estado.aberto; renderPara(id); });
+  el.querySelector('[data-para=copiar]').addEventListener('click', async () => {
+    const texto = d.map(p => p.email).join('\n');
+    try { await navigator.clipboard.writeText(texto); toast(`${numero(d.length)} e-mail${d.length === 1 ? '' : 's'} copiado${d.length === 1 ? '' : 's'}.`); }
+    catch { Swal.fire({ title: 'Copie os e-mails', input: 'textarea', inputValue: texto, confirmButtonText: 'Fechar' }); }
+  });
+}
+
 // ---------------------------------------------------------------- etapa 4: revisao e envio
 function revisar() {
   const d = destinatarios(), m = lerMensagem(), b = blocosDe(d.length, tamanhoBloco()), manual = $('input[name=b-modo]:checked').value === 'manual';
@@ -385,6 +423,7 @@ function revisar() {
     <span>Blocos: <b>${b.length}</b> de até ${numero(tamanhoBloco())}</span><span>${manual ? 'Liberação <b>manual</b> de cada bloco' : `Automático, intervalo de <b>${Number($('#b-intervalo').value) || 0} min</b>`}</span>
     <span>Anexos: <b>${ANEXOS.length ? ANEXOS.map(a => esc(a.name)).join(', ') : 'nenhum'}</b></span></div>
     <div class="meta" style="font-size:14px;color:var(--tinta)"><span>Assunto: <b>${esc(trocar(m.assunto, d[0]))}</b></span><span>De: ${esc(m.remetente_nome || CFG.remetente_nome)} &lt;${esc(m.remetente_email || CFG.remetente || 'não configurado')}&gt;</span></div>`;
+  renderPara('r-para');
   $('#r-previa').onload = ajustarPrevia;
   $('#r-previa').srcdoc = `<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.5;color:#14152b;padding:8px">${trocarHtml(m.corpo_html, d[0])}</div>`;
 }
@@ -419,6 +458,7 @@ function irEtapa(n) {
   $('#btn-avancar').classList.toggle('oculto', n === 4);
   $('#btn-enviar').classList.toggle('oculto', n !== 4);
   if (n === 3) { if (!$('#b-tamanho').value || Number($('#b-tamanho').value) > destinatarios().length) $('#b-tamanho').value = destinatarios().length; previaBlocos(true); }
+  if (n === 2) renderPara('m-para');
   if (n === 4) revisar();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
