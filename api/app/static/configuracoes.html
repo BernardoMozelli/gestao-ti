@@ -18,31 +18,24 @@
 
     <!-- 1. Conta que envia -->
     <section class="cartao pilha">
-      <div class="cfg-titulo"><span class="num">1</span><div><h2>Conta de envio</h2>
-        <p class="ajuda">Todos os e-mails da Gestão TI saem desta conta. Ela é fixa no sistema e não pode ser trocada.</p></div></div>
-      <div class="linha-campos">
-        <div class="campo"><label for="SMTP_FROM">E-mail da conta <span class="tag fixo">fixo</span></label><input class="entrada fixa" id="SMTP_FROM" readonly tabindex="-1"></div>
-        <div class="campo"><label for="SMTP_FROM_NOME">Nome que aparece para quem recebe</label><input class="entrada" id="SMTP_FROM_NOME" placeholder="Prefeitura Municipal de Santa Luzia"></div>
-      </div>
+      <div class="cfg-titulo"><span class="num">1</span><div><h2>Conta que envia os e-mails</h2>
+        <p class="ajuda">Cada e-mail sai da conta de <b>quem está logado</b> na Gestão TI: o e-mail cadastrado no AD, com o mesmo login e senha da rede.
+          Não há conta nem senha para cadastrar aqui. Vale para os disparos, para a senha do Wi-Fi Visitante e para os testes desta tela.</p></div></div>
       <label class="marcar caixa-opcao teste"><input type="checkbox" id="EMAIL_TESTE_ATIVO">
-        <span><b>Modo de teste: enviar por outra conta</b><small>Use enquanto a geral@ não estiver liberada no servidor de e-mail. Ligado, todos os envios da Gestão TI
-          (disparos, e-mail de teste e senha de visitante) saem do e-mail de teste, e a tela de disparos mostra o aviso “modo de teste”. Desligue para voltar à geral@.</small></span></label>
-      <div class="campo oculto" id="bloco-teste" style="max-width:560px"><label for="EMAIL_TESTE">E-mail de teste</label>
-        <input class="entrada" id="EMAIL_TESTE" placeholder="ex.: seu.nome@santaluzia.mg.gov.br" autocomplete="off">
-        <p class="ajuda">Normalmente o mesmo e-mail do login abaixo: o servidor só deixa enviar com o e-mail da própria conta.
-          <button type="button" class="link-azul" id="usar-login">Usar o usuário de login</button></p></div>
-      <div class="campo"><label>Login no servidor de e-mail</label>
-        <div class="opcoes-radio" id="login-modo">
-          <label><span><input type="radio" name="login" value="conta"><b>Com o e-mail da conta</b></span><small>O mais comum: usuário = e-mail acima.</small></label>
-          <label><span><input type="radio" name="login" value="outro"><b>Com outro usuário</b></span><small>O servidor pede um login diferente.</small></label>
-          <label><span><input type="radio" name="login" value="sem"><b>Sem login</b></span><small>Servidor interno que aceita sem senha.</small></label>
-        </div></div>
-      <div class="linha-campos" id="bloco-login">
-        <div class="campo oculto" id="caixa-usuario"><label for="SMTP_USER">Usuário de login</label><input class="entrada" id="SMTP_USER" autocomplete="off"></div>
-        <div class="campo"><label for="SMTP_PASSWORD">Senha da conta</label>
-          <div class="senha-caixa"><input class="entrada" id="SMTP_PASSWORD" type="password" autocomplete="new-password">
-            <button type="button" id="olho" aria-label="Mostrar senha"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12Z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
-          <p class="ajuda" id="senha-status"></p></div>
+        <span><b>Modo de teste: enviar tudo por uma conta de teste</b><small>Ligado, todos os envios da Gestão TI saem da conta de teste abaixo, sem usar a conta
+          de ninguém (útil com o Mailpit ou para testar o servidor). A tela de disparos mostra o aviso “modo de teste”. Desligue para voltar ao normal.</small></span></label>
+      <div class="pilha oculto" id="bloco-teste">
+        <div class="linha-campos">
+          <div class="campo"><label for="EMAIL_TESTE">E-mail de teste</label>
+            <input class="entrada" id="EMAIL_TESTE" placeholder="ex.: seu.nome@santaluzia.mg.gov.br" autocomplete="off">
+            <p class="ajuda">Os e-mails saem deste endereço, e ele também é o usuário de login no servidor.</p></div>
+          <div class="campo" id="caixa-senha-teste"><label for="SMTP_PASSWORD">Senha da conta de teste</label>
+            <div class="senha-caixa"><input class="entrada" id="SMTP_PASSWORD" type="password" autocomplete="new-password">
+              <button type="button" id="olho" aria-label="Mostrar senha"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12Z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
+            <p class="ajuda" id="senha-status"></p></div>
+        </div>
+        <label class="marcar caixa-opcao"><input type="checkbox" id="teste-sem-login">
+          <span><b>O servidor não pede login</b><small>Para servidores de teste como o Mailpit, que aceitam e-mails sem usuário e senha.</small></span></label>
       </div>
     </section>
 
@@ -71,9 +64,33 @@
       </div>
     </section>
 
-    <!-- 3. Limites -->
+    <!-- 3. Disparos pela conta de cada usuario -->
+    <section class="cartao pilha">
+      <div class="cfg-titulo"><span class="num">3</span><div><h2>Disparos de e-mail dos usuários</h2>
+        <p class="ajuda">Os envios usam o servidor do item 2 com o <b>login e a senha do AD</b> de quem está logado. A senha é a do próprio login na Gestão TI
+          (fica criptografada na sessão e some ao sair); só é pedida de novo se o servidor de e-mail recusar. Num disparo, ela fica guardada com criptografia só até ele terminar.</p></div></div>
+      <label class="marcar caixa-opcao"><input type="checkbox" id="EMAIL_PARA_TODOS">
+        <span><b>Módulos de e-mail liberados para todos</b><small>Marcado, qualquer pessoa que entra na Gestão TI tem “E-mails para servidores da Prefeitura” e
+          “E-mails por lista” (o envio depende de créditos). Para bloquear só uma pessoa, desmarque o módulo nas permissões dela, na Gestão de Usuários.
+          Desmarcado, os módulos de e-mail voltam a depender de permissão, como os outros.</small></span></label>
+      <div class="linha-campos">
+        <div class="campo"><label for="SMTP_LOGIN_FORMATO">Usuário de login no servidor de e-mail</label>
+          <select class="entrada" id="SMTP_LOGIN_FORMATO">
+            <option value="email">O e-mail da pessoa (joao@santaluzia.mg.gov.br)</option>
+            <option value="usuario">O login da rede (joao)</option>
+            <option value="upn">Login com o domínio do AD (joao@santaluzia.int)</option>
+            <option value="dominio">Domínio\login (SANTALUZIA\joao)</option>
+          </select>
+          <p class="ajuda">Como o servidor de e-mail espera o usuário. Na dúvida, teste com “Enviar teste para mim” na tela de disparos.</p></div>
+        <div class="campo"><label for="CREDITOS_INICIAIS">Créditos de quem dispara pela primeira vez</label>
+          <input class="entrada" id="CREDITOS_INICIAIS" type="number" min="0" max="1000">
+          <p class="ajuda">1 crédito = 1 disparo. Com 0, a pessoa precisa pedir créditos (ou receber no módulo Créditos de e-mail) antes do primeiro disparo.</p></div>
+      </div>
+    </section>
+
+    <!-- 4. Limites -->
     <details class="cartao avancado" id="limites">
-      <summary><div class="cfg-titulo"><span class="num">3</span><div><h2>Limites dos disparos</h2>
+      <summary><div class="cfg-titulo"><span class="num">4</span><div><h2>Limites dos disparos</h2>
         <p class="ajuda" id="resumo-limites"></p></div></div></summary>
       <div class="linha-campos" style="margin-top:14px">
         <div class="campo"><label for="por_minuto">E-mails por minuto</label><input class="entrada" id="por_minuto" type="number" min="1" max="1200" placeholder="sem limite">
@@ -86,7 +103,7 @@
 
     <!-- 4. Wi-Fi Visitante -->
     <section class="cartao pilha" id="wifi-visitante">
-      <div class="cfg-titulo"><span class="num">4</span><div><h2>Wi-Fi Visitante (banco do portal)</h2>
+      <div class="cfg-titulo"><span class="num">5</span><div><h2>Wi-Fi Visitante (banco do portal)</h2>
         <p class="ajuda">O portal do Wi-Fi de visitantes guarda os cadastros e as senhas num banco MySQL. A Gestão TI lê esse banco para listar os visitantes
           e grava lá a senha nova quando a TI troca. O visitante entra com a senha nova na hora.</p></div></div>
 
@@ -212,7 +229,7 @@ function lerRadius() {
 // Pausa (ms) <-> e-mails por minuto (o envio leva ~50 ms alem da pausa)
 const msParaMinuto = ms => ms ? Math.max(1, Math.floor(60000 / (ms + 50))) : '';
 const minutoParaMs = n => n ? Math.max(0, Math.round(60000 / n - 50)) : 0;
-const loginModo = () => document.querySelector('input[name=login]:checked')?.value || 'conta';
+const loginModo = () => $('#EMAIL_TESTE_ATIVO').checked && $('#teste-sem-login').checked ? 'sem' : 'conta';
 function tipoDoServidor(d) {
   if (d.SMTP_HOST === 'smtp.office365.com') return 'm365';
   if (d.SMTP_HOST === 'smtp.gmail.com') return 'google';
@@ -221,20 +238,20 @@ function tipoDoServidor(d) {
 }
 
 function preencher(d) {
-  ['SMTP_FROM', 'SMTP_FROM_NOME', 'SMTP_HOST', 'SMTP_PORT', 'SMTP_SEGURANCA', 'SMTP_USER', 'LISTA_MAX_EMAILS', 'ANEXOS_MAX_MB', 'IMAGEM_MAX_MB']
+  ['SMTP_HOST', 'SMTP_PORT', 'SMTP_SEGURANCA', 'LISTA_MAX_EMAILS', 'ANEXOS_MAX_MB', 'IMAGEM_MAX_MB', 'SMTP_LOGIN_FORMATO', 'CREDITOS_INICIAIS']
     .forEach(k => { $('#' + k).value = d[k] ?? ''; });
   $('#por_minuto').value = msParaMinuto(d.ENVIO_PAUSA_MS);
-  $('#SMTP_FROM').value = d.CONTA_OFICIAL;   // a conta oficial e fixa; o modo de teste e separado
   $('#EMAIL_TESTE_ATIVO').checked = String(d.EMAIL_TESTE_ATIVO).toLowerCase() === 'sim';
   $('#EMAIL_TESTE').value = d.EMAIL_TESTE || '';
-  $('#aviso-teste').innerHTML = d.conta_efetiva !== d.CONTA_OFICIAL ? `<b>Modo de teste ligado.</b> Os e-mails estão saindo de <b>${esc(d.conta_efetiva)}</b>, não da ${esc(d.CONTA_OFICIAL)}.` : '';
-  $('#aviso-teste').classList.toggle('oculto', d.conta_efetiva === d.CONTA_OFICIAL);
-  const modo = !d.SMTP_USER ? 'sem' : (d.SMTP_USER.toLowerCase() === (d.CONTA_OFICIAL || '').toLowerCase() ? 'conta' : 'outro');
-  document.querySelector(`input[name=login][value=${modo}]`).checked = true;
+  const testeLigado = String(d.EMAIL_TESTE_ATIVO).toLowerCase() === 'sim';
+  $('#aviso-teste').innerHTML = testeLigado ? `<b>Modo de teste ligado.</b> Todos os e-mails estão saindo de <b>${esc(d.EMAIL_TESTE || '')}</b>, e não da conta de cada usuário.` : '';
+  $('#aviso-teste').classList.toggle('oculto', !testeLigado);
+  $('#teste-sem-login').checked = !d.SMTP_USER;
+  $('#EMAIL_PARA_TODOS').checked = String(d.EMAIL_PARA_TODOS).toLowerCase() !== 'nao';
   $('#tipo').value = tipoDoServidor(d);
   $('#dica').textContent = TIPOS[$('#tipo').value].dica;
   $('#SMTP_PASSWORD').value = '';
-  $('#SMTP_PASSWORD').placeholder = d.tem_senha ? '•••••••• guardada (digite só para trocar)' : 'digite a senha da conta';
+  $('#SMTP_PASSWORD').placeholder = d.tem_senha ? '•••••••• guardada (digite só para trocar)' : 'senha da conta de teste';
   $('#senha-status').innerHTML = d.tem_senha ? 'Senha guardada com criptografia. <button type="button" class="link" id="apagar">Apagar senha</button>' : '';
   $('#apagar')?.addEventListener('click', apagarSenha);
   $('#aviso-env').classList.toggle('oculto', !Object.entries(d.origem).some(([k, o]) => o === '.env' && k !== 'SMTP_PASSWORD' && d[k] !== '' && d[k] != null));
@@ -242,27 +259,25 @@ function preencher(d) {
   BASE = JSON.stringify(lerTela()); sujo();
 }
 function atualizarTeste() { $('#bloco-teste').classList.toggle('oculto', !$('#EMAIL_TESTE_ATIVO').checked); }
-function atualizarLogin() {
-  const m = loginModo();
-  $('#caixa-usuario').classList.toggle('oculto', m !== 'outro');
-  $('#bloco-login').classList.toggle('oculto', m === 'sem');
-}
+function atualizarLogin() { $('#caixa-senha-teste').classList.toggle('oculto', $('#teste-sem-login').checked); }
 function resumoLimites() {
   const n = $('#por_minuto').value;
   $('#resumo-limites').textContent = `${n ? `Até ${numero(n)} e-mails por minuto` : 'Sem limite de velocidade'} · ${numero($('#LISTA_MAX_EMAILS').value)} destinatários por disparo · anexos até ${$('#ANEXOS_MAX_MB').value} MB`;
 }
 function lerTela() {
   const num = id => { const v = $('#' + id).value.trim(); return v === '' ? null : Number(v); };
-  const modo = loginModo(), from = $('#SMTP_FROM').value.trim();
+  // Login/senha guardados so servem para a conta de teste; sem o modo de teste, cada um usa a propria conta
+  const teste = $('#EMAIL_TESTE_ATIVO').checked, semLogin = $('#teste-sem-login').checked;
   return {
-    SMTP_FROM: from, SMTP_FROM_NOME: $('#SMTP_FROM_NOME').value.trim(),
     SMTP_HOST: $('#SMTP_HOST').value.trim(), SMTP_PORT: num('SMTP_PORT'), SMTP_SEGURANCA: $('#SMTP_SEGURANCA').value,
-    SMTP_USER: modo === 'conta' ? from : (modo === 'outro' ? $('#SMTP_USER').value.trim() : ''),
-    SMTP_PASSWORD: modo === 'sem' ? '' : $('#SMTP_PASSWORD').value,
+    SMTP_USER: teste ? (semLogin ? '' : $('#EMAIL_TESTE').value.trim()) : null,
+    SMTP_PASSWORD: teste && !semLogin ? $('#SMTP_PASSWORD').value : '',
     apagar_senha: false,
     EMAIL_TESTE_ATIVO: $('#EMAIL_TESTE_ATIVO').checked ? 'sim' : 'nao', EMAIL_TESTE: $('#EMAIL_TESTE').value.trim(),
     ENVIO_PAUSA_MS: minutoParaMs(num('por_minuto')),
     LISTA_MAX_EMAILS: num('LISTA_MAX_EMAILS'), ANEXOS_MAX_MB: num('ANEXOS_MAX_MB'), IMAGEM_MAX_MB: num('IMAGEM_MAX_MB'),
+    SMTP_LOGIN_FORMATO: $('#SMTP_LOGIN_FORMATO').value, CREDITOS_INICIAIS: num('CREDITOS_INICIAIS'),
+    EMAIL_PARA_TODOS: $('#EMAIL_PARA_TODOS').checked ? 'sim' : 'nao',
   };
 }
 // Barra de salvar: mostra quando ha alteracoes
@@ -274,14 +289,14 @@ function sujo() {
 }
 document.querySelector('main').addEventListener('input', () => { resumoLimites(); sujo(); });
 document.querySelector('main').addEventListener('change', ev => {
-  if (ev.target.name === 'login') atualizarLogin();
+  if (ev.target.id === 'teste-sem-login') atualizarLogin();
   if (ev.target.id === 'EMAIL_TESTE_ATIVO') { atualizarTeste(); if (ev.target.checked && !$('#EMAIL_TESTE').value) $('#EMAIL_TESTE').focus(); }
   if (ev.target.id === 'RADIUS_SSH') $('#bloco-ssh').classList.toggle('oculto', !ev.target.checked);
   if (ev.target.id === 'tipo') {
     const t = TIPOS[ev.target.value];
     Object.entries(t).forEach(([k, v]) => {
       if (k === 'dica') return;
-      if (k === 'login') { document.querySelector(`input[name=login][value=${v}]`).checked = true; atualizarLogin(); return; }
+      if (k === 'login') { $('#teste-sem-login').checked = v === 'sem'; atualizarLogin(); return; }
       $('#' + k).value = v;
     });
     if (ev.target.value === 'proprio' && ['smtp.office365.com', 'smtp.gmail.com', 'mailpit'].includes($('#SMTP_HOST').value)) $('#SMTP_HOST').value = '';
@@ -289,11 +304,6 @@ document.querySelector('main').addEventListener('change', ev => {
   }
   resumoLimites(); sujo();
 });
-$('#usar-login').onclick = () => {
-  const u = loginModo() === 'outro' ? $('#SMTP_USER').value.trim() : '';
-  if (!u.includes('@')) return toast('Escolha “Com outro usuário” e preencha o usuário de login primeiro.', 'info');
-  $('#EMAIL_TESTE').value = u; sujo();
-};
 $('#olho').onclick = () => { const c = $('#SMTP_PASSWORD'); c.type = c.type === 'password' ? 'text' : 'password'; };
 $('#btn-desfazer').onclick = () => { preencherRadius(RAD); preencher(ATUAL); };
 document.querySelectorAll('.olho[data-alvo]').forEach(b => b.onclick = () => { const c = $('#' + b.dataset.alvo); c.type = c.type === 'password' ? 'text' : 'password'; });
@@ -338,17 +348,35 @@ $('#btn-conferir').onclick = async () => {
 window.addEventListener('beforeunload', ev => { if (!$('#btn-salvar').disabled) { ev.preventDefault(); ev.returnValue = ''; } });
 
 async function apagarSenha() {
-  const r = await Swal.fire({ icon: 'warning', title: 'Apagar a senha guardada?', text: 'Os disparos param de sair até uma nova senha ser salva.',
+  const r = await Swal.fire({ icon: 'warning', title: 'Apagar a senha guardada?', text: 'A conta de teste fica sem senha até uma nova ser salva.',
     showCancelButton: true, confirmButtonText: 'Apagar', cancelButtonText: 'Voltar', customClass: { confirmButton: 'perigo' } });
   if (!r.isConfirmed) return;
   try { ATUAL = await chamar('/api/configuracoes/email', { method: 'PUT', body: JSON.stringify({ apagar_senha: true }) }); preencher(ATUAL); toast('Senha apagada.'); }
   catch (e) { erro(e); }
 }
+// Sem o modo de teste, os testes usam a conta de quem esta logado (senha do login). Se faltar ou for recusada, pede.
+async function comMinhaSenha(caminho, corpo) {
+  let senha = null;
+  for (let tentativa = 0; tentativa < 3; tentativa++) {
+    try { return await chamar(caminho, { method: 'POST', body: JSON.stringify({ ...corpo, senha_usuario: senha }) }); }
+    catch (e) {
+      const recusada = e.status === 422 && /senha/i.test(e.message);
+      if (e.status !== 428 && !recusada) throw e;
+      const r = await Swal.fire({ title: recusada ? 'Senha recusada. Digite de novo' : 'Sua senha da rede', icon: recusada ? 'warning' : undefined,
+        input: 'password', inputPlaceholder: 'a mesma senha do login', inputAttributes: { autocomplete: 'current-password' },
+        html: `<p class="ajuda" style="margin:0">O teste usa a sua conta de e-mail (${esc(EU.email || EU.usuario)}), com o login e a senha da rede.</p>`,
+        showCancelButton: true, confirmButtonText: 'Continuar', cancelButtonText: 'Voltar', inputValidator: v => !v ? 'Digite a sua senha.' : undefined });
+      if (!r.isConfirmed) { const c = new Error('cancelado'); c.cancelado = true; throw c; }
+      senha = r.value;
+    }
+  }
+  throw new Error('A senha foi recusada várias vezes.');
+}
 $('#btn-testar').onclick = async ev => {
   const b = ev.target; b.disabled = true; const texto = b.textContent; b.textContent = 'Testando…';
-  try { await chamar('/api/configuracoes/email/testar', { method: 'POST', body: JSON.stringify(lerTela()) });
-    Swal.fire({ icon: 'success', title: 'Conexão funcionando', text: 'O servidor aceitou a conexão' + (loginModo() !== 'sem' ? ' e o login.' : '.') + (!$('#btn-salvar').disabled ? ' Lembre de salvar.' : '') }); }
-  catch (e) { Swal.fire({ icon: 'error', title: 'Não conectou', text: e.message }); }
+  try { const r = await comMinhaSenha('/api/configuracoes/email/testar', lerTela());
+    Swal.fire({ icon: 'success', title: 'Conexão funcionando', text: 'O servidor aceitou a conexão' + (loginModo() !== 'sem' ? ` e o login de ${r.conta}.` : '.') + (!$('#btn-salvar').disabled ? ' Lembre de salvar.' : '') }); }
+  catch (e) { if (!e.cancelado) Swal.fire({ icon: 'error', title: 'Não conectou', text: e.message }); }
   finally { b.disabled = false; b.textContent = texto; }
 };
 $('#btn-enviar-teste').onclick = async () => {
@@ -357,9 +385,9 @@ $('#btn-enviar-teste').onclick = async () => {
   if (!r.isConfirmed) return;
   try {
     Swal.fire({ title: 'Enviando…', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-    await chamar('/api/configuracoes/email/enviar-teste', { method: 'POST', body: JSON.stringify({ ...lerTela(), para: r.value }) });
+    await comMinhaSenha('/api/configuracoes/email/enviar-teste', { ...lerTela(), para: r.value });
     Swal.fire({ icon: 'success', title: 'Teste enviado', text: `Confira a caixa de entrada (e o spam) de ${r.value}.` });
-  } catch (e) { Swal.fire({ icon: 'error', title: 'Não foi possível enviar', text: e.message }); }
+  } catch (e) { if (!e.cancelado) Swal.fire({ icon: 'error', title: 'Não foi possível enviar', text: e.message }); }
 };
 $('#btn-salvar').onclick = async () => {
   try {

@@ -56,3 +56,17 @@ def nova_solicitacao(sol) -> None:
             envio()
         except Exception as erro:  # noqa: BLE001
             log.warning("Falha ao notificar por %s: %s", nome, erro)
+
+
+def pedido_creditos(pedido_id: int, nome: str, login: str, quantidade: int, motivo: str) -> None:
+    """Aviso de pedido de creditos de e-mail (mesmos canais da TI: Telegram e WhatsApp, se configurados)."""
+    texto = (f"{config.APP_NOME} - pedido de créditos de e-mail nº {pedido_id}\n"
+             f"Usuário: {nome} ({login})\n"
+             f"Quantidade: {quantidade} crédito{'' if quantidade == 1 else 's'}\n"
+             f"Motivo: {motivo}\n\n"
+             f"Aprovar ou recusar: {config.PAINEL_URL.rstrip('/')}/m/creditos-email")
+    for nome_canal, envio in (("telegram", lambda: _telegram(texto)), ("whatsapp", lambda: _whatsapp(texto))):
+        try:
+            envio()
+        except Exception as erro:  # noqa: BLE001
+            log.warning("Falha ao notificar pedido de créditos por %s: %s", nome_canal, erro)

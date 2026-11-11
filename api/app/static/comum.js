@@ -37,7 +37,8 @@ async function api(caminho, opcoes = {}, aoExpirar) {
   if (!r.ok) {
     let msg = corpo.detail || `Erro ${r.status}`;
     if (Array.isArray(msg)) msg = msg.map(e => e.msg).join('; ');
-    throw new Error(msg);
+    const falha = new Error(msg); falha.status = r.status;   // a tela pode reagir ao codigo (ex.: 428 = pedir a senha)
+    throw falha;
   }
   return corpo;
 }
@@ -187,6 +188,7 @@ const ICONES = {
   sair: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/>',
   registro: '<path d="M9 4h6a1 1 0 0 1 1 1v1H8V5a1 1 0 0 1 1-1Z"/><path d="M8 5H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><path d="M8 11h2M8 15h2M13 11h3M13 15h3"/>',
   wifi: '<path d="M2 9a16 16 0 0 1 20 0"/><path d="M5.5 12.5a11 11 0 0 1 13 0"/><path d="M9 16a5.5 5.5 0 0 1 6 0"/><circle cx="12" cy="19.5" r="1.2" fill="currentColor"/>',
+  moeda: '<circle cx="12" cy="12" r="9"/><path d="M14.8 9.2A2.8 2.8 0 0 0 12 8h-.6a2.4 2.4 0 0 0 0 4.8h1.2a2.4 2.4 0 0 1 0 4.8H12a2.8 2.8 0 0 1-2.8-1.2M12 6v2M12 17.6V19"/>',
   email: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',
   lista: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/>',
   chave: '<circle cx="8" cy="15" r="4"/><path d="m11 12 9-9M17 6l3 3M15 8l2 2"/>',

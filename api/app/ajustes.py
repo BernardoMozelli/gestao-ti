@@ -51,6 +51,9 @@ CAMPOS = {
     "ANEXOS_MAX_MB": (int, lambda: config.ANEXOS_MAX_MB),
     "IMAGEM_MAX_MB": (int, lambda: config.IMAGEM_MAX_MB),
     "LISTA_MAX_EMAILS": (int, lambda: config.LISTA_MAX_EMAILS),
+    "SMTP_LOGIN_FORMATO": (str, lambda: config.SMTP_LOGIN_FORMATO),   # email | usuario | upn | dominio
+    "CREDITOS_INICIAIS": (int, lambda: config.CREDITOS_INICIAIS),
+    "EMAIL_PARA_TODOS": (str, lambda: config.EMAIL_PARA_TODOS),        # sim | nao
     "RADIUS_DB_HOST": (str, lambda: config.RADIUS_DB_HOST),
     "RADIUS_DB_PORTA": (int, lambda: config.RADIUS_DB_PORTA),
     "RADIUS_DB_NOME": (str, lambda: config.RADIUS_DB_NOME),
@@ -71,6 +74,19 @@ _cache: dict = {"em": 0.0, "dados": {}}
 def _cofre() -> Fernet:
     chave = hashlib.sha256(("gestao-ti-config:" + (config.SECRET_KEY or "")).encode()).digest()
     return Fernet(base64.urlsafe_b64encode(chave))
+
+
+def cifrar(texto: str) -> str:
+    return _cofre().encrypt(texto.encode()).decode()
+
+
+def decifrar(cifrado: str | None) -> str | None:
+    if not cifrado:
+        return None
+    try:
+        return _cofre().decrypt(cifrado.encode()).decode()
+    except InvalidToken:
+        return None
 
 
 def _do_banco() -> dict:

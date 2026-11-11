@@ -120,8 +120,12 @@ function linhaModulos(u) {
   const r = u.registro;
   if (!r) return '<span>Nunca acessou o Gestão TI</span>';
   if (r.admin_geral) return '<span class="tag indigo">Todos os módulos</span>';
-  if (!r.modulos.length) return '<span class="tag pendente">Entrou, aguardando liberação de módulos</span>';
-  return r.modulos.map(m => `<span class="tag indigo">${esc(nomeModulo(m))}</span>`).join('');
+  // Os modulos liberados para todos (e-mails) nao aparecem aqui: so o que foi concedido a mais
+  const todos = EU.catalogo.filter(m => m.para_todos).map(m => m.id);
+  const extras = r.modulos.filter(m => !todos.includes(m));
+  const bloq = (r.bloqueados || []).map(m => `<span class="tag negada" title="Bloqueado para esta pessoa">Bloqueado: ${esc(nomeModulo(m))}</span>`).join('');
+  if (!extras.length) return (bloq || (r.modulos.length ? '<span class="tag">Só os módulos liberados para todos</span>' : '<span class="tag pendente">Entrou, aguardando liberação de módulos</span>'));
+  return extras.map(m => `<span class="tag indigo">${esc(nomeModulo(m))}</span>`).join('') + bloq;
 }
 function renderUsuarios(total) {
   if (!LISTA.length) { $('#conteudo').innerHTML = `<div class="vazio">${$('#f-busca').value.trim() ? 'Ninguém encontrado nesta aba.' : 'Ninguém aqui.'}</div>`; return; }
@@ -190,8 +194,9 @@ async function finalizarSessao(u) {
 
 function caixasModulos(selecionados) {
   return `<div class="check-modulos">${EU.catalogo.map(m => {
+    // Modulos de e-mail liberados para todos: vem marcados; desmarcar bloqueia o modulo so para esta pessoa
     const pode = m.disponivel;
-    const motivo = !m.disponivel ? 'Em breve' : '';
+    const motivo = !m.disponivel ? 'Em breve' : (m.para_todos ? 'Liberado para todos · desmarque para bloquear esta pessoa' : '');
     return `<label class="${pode ? '' : 'desabilitado'}"><input type="checkbox" name="sw-mod" value="${m.id}" ${selecionados.includes(m.id) ? 'checked' : ''} ${pode ? '' : 'disabled'}>
       <span><b>${esc(nomeCompleto(m))}</b>${motivo ? ` <span class="tag">${motivo}</span>` : ''}<small>${esc(m.descricao)}</small></span></label>`;
   }).join('')}</div>`;
@@ -199,7 +204,8 @@ function caixasModulos(selecionados) {
 const lerModulos = () => [...document.querySelectorAll('input[name=sw-mod]:checked')].map(c => c.value);
 
 async function editarPermissoes(u) {
-  const atuais = u.registro ? u.registro.modulos : [];
+  // Quem nunca entrou ja comeca com os modulos liberados para todos marcados (desmarcar = bloquear)
+  const atuais = u.registro ? u.registro.modulos : EU.catalogo.filter(m => m.para_todos).map(m => m.id);
   const concede = !!u.registro?.pode_conceder;
   const r = await Swal.fire({ title: `Permissões de ${esc(u.nome)}`, width: 620, showCancelButton: true, confirmButtonText: 'Salvar', cancelButtonText: 'Voltar',
     html: `${caixasModulos(atuais)}
@@ -237,7 +243,7 @@ $('#btn-local').onclick = async () => {
       <div class="campo"><label for="sw-u">Login</label><input class="entrada" id="sw-u" autocomplete="off"></div>
       <div class="campo"><label for="sw-n">Nome</label><input class="entrada" id="sw-n"></div>
       <div class="campo"><label for="sw-s">Senha (mínimo 8 caracteres)</label><input class="entrada" id="sw-s" type="password" autocomplete="new-password"></div>
-      <div class="campo"><label>Módulos</label></div>${caixasModulos([])}`,
+      <div class="campo"><label>Módulos</label></div>${caixasModulos(EU.catalogo.filter(m => m.para_todos).map(m => m.id))}`,
     preConfirm: () => ({ usuario: $('#sw-u').value.trim(), nome: $('#sw-n').value.trim(), senha: $('#sw-s').value, modulos: lerModulos() }) });
   if (!r.isConfirmed) return;
   try { await chamar('/api/usuarios/local', { method: 'POST', body: JSON.stringify(r.value) }); toast('Usuário criado.'); carregar(); }

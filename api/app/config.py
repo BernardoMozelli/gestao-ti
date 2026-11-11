@@ -96,6 +96,12 @@ ANEXOS_MAX_MB = int(_env("ANEXOS_MAX_MB", "10"))                 # soma dos anex
 IMAGEM_MAX_MB = int(_env("IMAGEM_MAX_MB", "3"))                  # cada imagem colocada dentro da mensagem
 LISTA_MAX_EMAILS = int(_env("LISTA_MAX_EMAILS", "50000"))        # limite de e-mails por disparo
 CACHE_AD_MINUTOS = int(_env("CACHE_AD_MINUTOS", "10"))           # lista de e-mails do AD guardada em memoria
+# Disparos saem da conta de e-mail de quem cria, com o login e a senha do AD. Formato do usuario no SMTP:
+# email (joao@santaluzia.mg.gov.br) | usuario (joao) | upn (joao@santaluzia.int) | dominio (SANTALUZIA\joao)
+SMTP_LOGIN_FORMATO = _env("SMTP_LOGIN_FORMATO", "email").lower()
+CREDITOS_INICIAIS = int(_env("CREDITOS_INICIAIS", "0"))
+# Modulos de e-mail liberados para todos (sim) ou so para quem recebe a permissao (nao)
+EMAIL_PARA_TODOS = _env("EMAIL_PARA_TODOS", "sim").lower()          # creditos de quem usa os disparos pela primeira vez
 
 
 # Identidade visual e nomes exibidos no painel e nas notificacoes

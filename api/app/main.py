@@ -28,7 +28,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from sqlalchemy import and_, func, or_, select
 
-from . import ad, ad_senhas, auditoria, auth, config, configuracoes_api, email_lote, logs_api, modulos, notificar, senhas_api, visitante_api
+from . import ad, ad_senhas, ajustes, auditoria, auth, config, configuracoes_api, creditos, email_lote, logs_api, modulos, notificar, senhas_api, visitante_api
 from .db import (Administrador, ComandoEstacao, Computador, Configuracao, Evento, Permissao,
                  SessaoEncerrada, SessionLocal, Solicitacao, agora, criar_tabelas)
 
@@ -44,7 +44,11 @@ STATIC = Path(__file__).parent / "static"
 async def guardar_ip(request: Request, chamar):
     """Guarda o IP de quem fez a requisicao: todo evento gravado sem IP recebe este (auditoria/Logs)."""
     auditoria.IP_ATUAL.set(auth.ip_do_cliente(request))
-    return await chamar(request)
+    resposta = await chamar(request)
+    # CSS e JS: o navegador sempre confere se mudou (responde 304 se nao mudou), entao atualizacoes aparecem sem Ctrl+F5
+    if request.url.path.startswith("/static/") and request.url.path.endswith((".css", ".js")):
+        resposta.headers["Cache-Control"] = "no-cache"
+    return resposta
 FUSO = ZoneInfo("America/Sao_Paulo")
 HOSTNAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9\-_.]{0,62}$")
 ABERTOS = ("pendente", "aprovada")
@@ -590,8 +594,12 @@ def admin_login(dados: Login, request: Request, response: Response) -> dict:
         auth.limpar_falhas(chave)
         registrar(s, "login", admin.usuario, detalhe=f"Origem: {'AD' if admin.origem == 'ad' else 'local'}", ip=ip)
         s.commit()
-        response.set_cookie(auth.COOKIE_ADMIN, auth.token_admin(admin.id), httponly=True, samesite="strict",
-                            secure=config.COOKIE_SEGURO, max_age=config.SESSAO_HORAS * 3600)
+        # Quem usa os modulos que enviam e-mail entra no servidor de e-mail com a propria conta do AD:
+        # a senha do login fica criptografada no cookie da sessao (nao vai para o banco)
+        senha_email = None
+        if admin.origem == "ad" and set(auth.modulos_de(s, admin)) & {"email_ad", "email_lista", "wifi_visitante", "configuracoes"}:
+            senha_email = ajustes.cifrar(dados.senha)
+        auth.gravar_cookie_admin(response, auth.token_admin(admin.id, senha_cifrada=senha_email))
         return {"usuario": admin.usuario, "nome": admin.nome, "origem": admin.origem, "unidade": admin.unidade}
 
 
@@ -623,8 +631,7 @@ def admin_renovar(response: Response, sessao: str | None = Cookie(default=None, 
     As atualizacoes automaticas das telas NAO chamam esta rota, entao nao mantem a sessao viva sozinhas."""
     auth.admin_atual(sessao)                       # valida tudo (ativo, finalizada, inatividade, teto)
     dados = auth.ler_sessao_admin(sessao)
-    response.set_cookie(auth.COOKIE_ADMIN, auth.token_admin(dados["id"], dados.get("ini")), httponly=True,
-                        samesite="strict", secure=config.COOKIE_SEGURO, max_age=config.SESSAO_HORAS * 3600)
+    auth.gravar_cookie_admin(response, auth.token_admin(dados["id"], dados.get("ini"), dados.get("sm")))
     return {"ok": True, "inatividade_minutos": config.SESSAO_INATIVIDADE_MINUTOS}
 
 
@@ -971,11 +978,13 @@ def _validar_modulos(lista: list[str], ti: bool) -> list[str]:
 
 
 def _gravar_modulos(s, alvo: Administrador, lista: list[str], por: str) -> None:
+    """Grava os modulos marcados. Modulo de e-mail desmarcado vira bloqueio ("-modulo") para essa pessoa."""
     atuais = {p.modulo: p for p in s.scalars(select(Permissao).where(Permissao.usuario_id == alvo.id)).all()}
+    desejadas = modulos.linhas_permissao(lista, atuais.keys())
     for m, p in atuais.items():
-        if m not in lista:
+        if m not in desejadas:
             s.delete(p)
-    for m in lista:
+    for m in desejadas:
         if m not in atuais:
             s.add(Permissao(usuario_id=alvo.id, modulo=m, concedido_por=por))
 
@@ -1066,6 +1075,8 @@ def _registro_dict(s, a: Administrador | None) -> dict | None:
     if not a:
         return None
     return {"id": a.id, "ativo": a.ativo, "ultimo_login": iso(a.ultimo_login), "modulos": auth.modulos_de(s, a),
+            "bloqueados": [] if auth.eh_admin_geral(a) else modulos.bloqueados(
+                s.scalars(select(Permissao.modulo).where(Permissao.usuario_id == a.id)).all()),
             "admin_geral": auth.eh_admin_geral(a), "pode_conceder": auth.pode_conceder(a)}
 
 
@@ -1079,6 +1090,7 @@ def _registros_em_lote(s) -> dict[str, dict]:
         return modulos.permitidos_para() if auth.eh_admin_geral(a) else modulos.efetivos(auth.eh_ti(a), concedidos.get(a.id, []))
     return {a.usuario: {"adm": a, "reg": {"id": a.id, "ativo": a.ativo, "ultimo_login": iso(a.ultimo_login),
                                           "modulos": mods(a), "admin_geral": auth.eh_admin_geral(a),
+                                          "bloqueados": [] if auth.eh_admin_geral(a) else modulos.bloqueados(concedidos.get(a.id, [])),
                                           "pode_conceder": auth.pode_conceder(a)}}
             for a in cadastros}
 
@@ -1298,6 +1310,7 @@ def eventos_usuarios(admin: Administrador = UsuariosDep) -> list[dict]:
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
 
+app.include_router(creditos.router)
 app.include_router(email_lote.router)
 app.include_router(configuracoes_api.router)
 app.include_router(senhas_api.router)
@@ -1335,6 +1348,11 @@ def pagina_wifi() -> FileResponse:
 @app.get("/m/email")
 def pagina_email() -> FileResponse:
     return _pagina("email.html")
+
+
+@app.get("/m/creditos-email")
+def pagina_creditos_email() -> FileResponse:
+    return _pagina("creditos-email.html")
 
 
 @app.get("/m/usuarios")

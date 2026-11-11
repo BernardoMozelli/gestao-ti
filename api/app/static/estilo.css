@@ -417,3 +417,28 @@ button.link-azul { background: none; border: 0; padding: 0; color: var(--indigo)
 .campo-para .para-rodape { margin: 6px 0 0; }
 .campo-para .para-rodape:empty { display: none; }
 @media (max-width: 640px) { .campo-para .para-busca { width: 100%; } }
+
+/* Creditos dos disparos de e-mail */
+.creditos-barra { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 14px; background: #fff; border: 1px solid var(--linha);
+  border-left: 4px solid var(--ok); border-radius: var(--raio); padding: 12px 16px; margin: 6px 0 20px; }
+.creditos-barra.zerado { border-left-color: var(--laranja); background: #fffaf3; }
+.creditos-barra.ilimitado { border-left-color: var(--indigo); }
+.creditos-barra .ico { color: var(--ok); display: grid; place-items: center; }
+.creditos-barra.zerado .ico { color: var(--laranja); }
+.creditos-barra.ilimitado .ico { color: var(--indigo); }
+.creditos-barra b { display: block; font-size: 15px; }
+.creditos-barra small { color: var(--suave); font-size: 13px; }
+.creditos-resposta { flex-basis: 100%; font-size: 13px; padding: 6px 10px; border-radius: 9px; background: var(--ok-bg); color: var(--ok); }
+.creditos-resposta.recusado { background: var(--ruim-bg); color: var(--ruim); }
+.creditos-resposta b { display: inline; font-size: inherit; }
+.tag.credito { background: #e7f8ef; color: #12733f; }
+.tag.aprovado { background: var(--ok-bg); color: var(--ok); }
+.tag.recusado { background: var(--ruim-bg); color: var(--ruim); }
+.tabela td.mais { color: var(--ok); font-weight: 700; }
+.tabela td.menos { color: var(--ruim); font-weight: 700; }
+.saldo-num { font-weight: 800; font-size: 16px; }
+.saldo-num.zero { color: var(--laranja); }
+.modulo .contador-pedidos { position: absolute; top: 16px; right: 16px; background: var(--laranja); color: #fff; font-size: 12px; font-weight: 700;
+  border-radius: 99px; padding: 2px 10px; }
+.acoes-saldo { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: nowrap; }
+.acoes-saldo .btn[disabled] { opacity: .45; cursor: not-allowed; }

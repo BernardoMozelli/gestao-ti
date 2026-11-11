@@ -123,7 +123,7 @@ liberação do Wi-Fi nos computadores, senhas dos visitantes do Wi-Fi, gestão d
 disparo de e-mails em lote, configurações e um registro completo de tudo o que é feito.</p>
 <p>Este sistema substitui o antigo <strong>pmsl-wifi-aprovacao</strong>: o módulo <em>Wi-Fi no computador</em> é a evolução
 dele, e o script <code>migrar_de_wifiaprovacao.sh</code> faz a troca no servidor copiando todos os dados.</p></div>
-  <div class="selos"><span class="selo laranja">Documentação técnica</span><span class="selo">Atualizada em 08/10/2026</span><span class="selo">24 seções</span></div>
+  <div class="selos"><span class="selo laranja">Documentação técnica</span><span class="selo">Atualizada em 11/11/2026</span><span class="selo">24 seções</span></div>
 </div></div>
 
 <div class="corpo">
@@ -131,8 +131,8 @@ dele, e o script <code>migrar_de_wifiaprovacao.sh</code> faz a troca no servidor
   <main class="conteudo"><section class="cartao" id="s1"><h2><span class="num">1</span>Visão geral</h2><ul>
 <li><strong>Uma entrada só:</strong> todos acessam com o usuário e a senha do AD. Há também um usuário local (<code>admin</code>)
   para emergência, caso o AD esteja fora do ar.</li>
-<li><strong>Módulos por pessoa:</strong> cada usuário vê só os módulos que recebeu. Quem não tem permissão vê os
-  módulos de e-mail marcados como <em>Aguardando liberação</em>.</li>
+<li><strong>Módulos por pessoa:</strong> cada usuário vê os módulos que recebeu. Os módulos de e-mail (<em>E-mails para servidores da
+  Prefeitura</em> e <em>E-mails por lista</em>) são liberados para todos; o envio depende de créditos.</li>
 <li><strong>Tudo registrado:</strong> cada ação (login, permissão, senha, liberação, disparo, configuração) vai para o
   módulo <strong>Logs</strong>, com autor, IP, data e detalhe. Senhas nunca são gravadas.</li>
 <li><strong>Configuração pela tela:</strong> servidor de e-mail e banco do Wi-Fi Visitante são configurados no módulo
@@ -329,7 +329,7 @@ dele, e o script <code>migrar_de_wifiaprovacao.sh</code> faz a troca no servidor
                             │
             AD 10.1.100.2 / 10.1.100.3 (LDAPS 636 / StartTLS 389, failover)
                             │
-                  SMTP (conta geral@)  ·  Telegram / WhatsApp (avisos do Wi-Fi)
+                  SMTP (conta de cada usuário)  ·  Telegram / WhatsApp (avisos do Wi-Fi)
 </code></pre></div>
 <ul>
 <li><strong>Uma única aplicação</strong> serve as telas (HTML estático) e a API (<code>/api/...</code>).</li>
@@ -342,7 +342,7 @@ dele, e o script <code>migrar_de_wifiaprovacao.sh</code> faz a troca no servidor
 </ul></section><section class="cartao" id="s4"><h2><span class="num">4</span>Estrutura de pastas</h2><div class="highlight"><pre><span></span><code>gestao-ti/
 ├── .env.example                  modelo de configuração (copiado para .env na 1ª instalação)
 ├── .env                          configuração real (NÃO versionar; permissão 600)
-├── docker-compose.yml            serviços db, api e mailpit (perfil &quot;teste&quot;)
+├── docker-compose.yml            serviços db, api e mailpit (perfil "teste")
 ├── aplicar_gestao_ti.sh          instala ou atualiza em /opt/gestao-ti
 ├── migrar_de_wifiaprovacao.sh    troca o sistema antigo do Wi-Fi pela Gestão TI, copiando os dados
 ├── marca/                        coloque logo.svg ou logo.png aqui (aparece em todas as telas)
@@ -396,15 +396,21 @@ dele, e o script <code>migrar_de_wifiaprovacao.sh</code> faz a troca no servidor
 </tr>
 <tr>
 <td>E-mails</td>
-<td><strong>E-mails para usuários do AD</strong></td>
+<td><strong>E-mails para servidores da Prefeitura</strong></td>
 <td><code>/m/email?origem=ad</code></td>
-<td>Disparo em lote para os usuários ativos do AD</td>
+<td>Disparo em lote para os servidores (usuários ativos do AD com e-mail), por nome ou setor. <strong>Liberado para todos</strong></td>
 </tr>
 <tr>
 <td>E-mails</td>
-<td><strong>E-mails por lista (TXT)</strong></td>
+<td><strong>E-mails por lista</strong></td>
 <td><code>/m/email?origem=lista</code></td>
-<td>Disparo em lote para uma lista enviada em arquivo</td>
+<td>Disparo em lote para uma lista de e-mails enviada em arquivo de texto. <strong>Liberado para todos</strong></td>
+</tr>
+<tr>
+<td>E-mails</td>
+<td><strong>Créditos de e-mail</strong></td>
+<td><code>/m/creditos-email</code></td>
+<td>Pedidos de créditos (aprovar/recusar), liberar ou remover créditos de qualquer pessoa, extrato</td>
 </tr>
 <tr>
 <td>Administração</td>
@@ -445,7 +451,7 @@ dele, e o script <code>migrar_de_wifiaprovacao.sh</code> faz a troca no servidor
 </tr>
 <tr>
 <td><strong>Qualquer outra conta ativa do AD</strong></td>
-<td>Entra, mas sem módulos. Vê os módulos de e-mail como <em>Aguardando liberação</em> e não consegue fazer nada até receber permissão</td>
+<td>Entra e já tem os dois módulos de e-mail (liberados para todos). Os outros módulos dependem de permissão. Para disparar, precisa de créditos</td>
 </tr>
 <tr>
 <td><strong>Conta desativada no AD</strong> ou bloqueada na Gestão TI</td>
@@ -597,7 +603,7 @@ depois de 10 minutos; pedido não entregue em <strong>12 horas</strong> (computa
 <p>Regras: ninguém finaliza a própria sessão por aqui (use <strong>Sair</strong>), e só o adm geral finaliza a sessão de outro adm geral.
 Pedido, execução e resultado ficam nos <strong>Logs</strong> e na aba <strong>Acessos e alterações</strong>.</p>
 <p>Acompanhar os pedidos no servidor:
-<div class="highlight"><pre><span></span><code>sudo docker exec gestao-ti-db psql -U gestao gestao_ti -c &quot;select id, hostname, usuario, criado_em, entregue_em, executado_em, resultado from comandos_estacao order by id desc limit 10;&quot;
+<div class="highlight"><pre><span></span><code>sudo docker exec gestao-ti-db psql -U gestao gestao_ti -c "select id, hostname, usuario, criado_em, entregue_em, executado_em, resultado from comandos_estacao order by id desc limit 10;"
 </code></pre></div></p>
 <h3>Regra do SEI (contas sem uso há mais de 90 dias)</h3>
 <ul>
@@ -860,25 +866,68 @@ consultas a cada 5 minutos, o que é esperado.</p>
 </tbody>
 </table>
 <p>Conta MySQL recomendada (o comando também aparece na tela):</p>
-<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="k">USER</span><span class="w"> </span><span class="s1">&#39;gestaoti&#39;</span><span class="o">@</span><span class="s1">&#39;localhost&#39;</span><span class="w"> </span><span class="n">IDENTIFIED</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="s1">&#39;SENHA-FORTE&#39;</span><span class="p">;</span>
-<span class="k">CREATE</span><span class="w"> </span><span class="k">USER</span><span class="w"> </span><span class="s1">&#39;gestaoti&#39;</span><span class="o">@</span><span class="s1">&#39;127.0.0.1&#39;</span><span class="w"> </span><span class="n">IDENTIFIED</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="s1">&#39;SENHA-FORTE&#39;</span><span class="p">;</span>
-<span class="k">GRANT</span><span class="w"> </span><span class="k">SELECT</span><span class="p">,</span><span class="w"> </span><span class="k">UPDATE</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">radio</span><span class="p">.</span><span class="n">reg_users</span><span class="w"> </span><span class="k">TO</span><span class="w"> </span><span class="s1">&#39;gestaoti&#39;</span><span class="o">@</span><span class="s1">&#39;localhost&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;gestaoti&#39;</span><span class="o">@</span><span class="s1">&#39;127.0.0.1&#39;</span><span class="p">;</span>
-<span class="k">GRANT</span><span class="w"> </span><span class="k">SELECT</span><span class="p">,</span><span class="w"> </span><span class="k">UPDATE</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">radio</span><span class="p">.</span><span class="n">radcheck</span><span class="w">  </span><span class="k">TO</span><span class="w"> </span><span class="s1">&#39;gestaoti&#39;</span><span class="o">@</span><span class="s1">&#39;localhost&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;gestaoti&#39;</span><span class="o">@</span><span class="s1">&#39;127.0.0.1&#39;</span><span class="p">;</span>
+<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="k">USER</span><span class="w"> </span><span class="s1">'gestaoti'</span><span class="o">@</span><span class="s1">'localhost'</span><span class="w"> </span><span class="n">IDENTIFIED</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="s1">'SENHA-FORTE'</span><span class="p">;</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">USER</span><span class="w"> </span><span class="s1">'gestaoti'</span><span class="o">@</span><span class="s1">'127.0.0.1'</span><span class="w"> </span><span class="n">IDENTIFIED</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="s1">'SENHA-FORTE'</span><span class="p">;</span>
+<span class="k">GRANT</span><span class="w"> </span><span class="k">SELECT</span><span class="p">,</span><span class="w"> </span><span class="k">UPDATE</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">radio</span><span class="p">.</span><span class="n">reg_users</span><span class="w"> </span><span class="k">TO</span><span class="w"> </span><span class="s1">'gestaoti'</span><span class="o">@</span><span class="s1">'localhost'</span><span class="p">,</span><span class="w"> </span><span class="s1">'gestaoti'</span><span class="o">@</span><span class="s1">'127.0.0.1'</span><span class="p">;</span>
+<span class="k">GRANT</span><span class="w"> </span><span class="k">SELECT</span><span class="p">,</span><span class="w"> </span><span class="k">UPDATE</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">radio</span><span class="p">.</span><span class="n">radcheck</span><span class="w">  </span><span class="k">TO</span><span class="w"> </span><span class="s1">'gestaoti'</span><span class="o">@</span><span class="s1">'localhost'</span><span class="p">,</span><span class="w"> </span><span class="s1">'gestaoti'</span><span class="o">@</span><span class="s1">'127.0.0.1'</span><span class="p">;</span>
 <span class="n">FLUSH</span><span class="w"> </span><span class="k">PRIVILEGES</span><span class="p">;</span>
 </code></pre></div>
 <blockquote>
 <p>O <code>root</code> do MySQL em Debian/Ubuntu costuma usar o plugin <code>auth_socket</code> e recusa senha (erro 1698).
 Nesse caso, use a conta acima.</p>
-</blockquote></section><section class="cartao" id="s10"><h2><span class="num">10</span>E-mails em lote</h2><h3>Conta de envio</h3>
+</blockquote></section><section class="cartao" id="s10"><h2><span class="num">10</span>E-mails em lote</h2><h3>Conta de envio: o e-mail de quem dispara</h3>
 <ul>
-<li><strong>Todos os e-mails saem de <code>geral@santaluzia.mg.gov.br</code>.</strong> A conta é fixa no código: não muda pela tela nem pelo <code>.env</code>.</li>
-<li>O nome do remetente e o "Responder para" podem ser ajustados em cada disparo.</li>
-<li><strong>Modo de teste</strong> (Configurações → 1. Conta de envio): enquanto a <code>geral@</code> não estiver liberada no servidor de e-mail,
-  ligue <em>"Modo de teste: enviar por outra conta"</em> e informe um e-mail de teste. Com o modo ligado:</li>
-<li>todos os envios saem desse e-mail (disparos, e-mail de teste e senha de visitante);</li>
-<li>a tela de disparos mostra a etiqueta <strong>modo de teste</strong>;</li>
-<li>Configurações mostra um aviso no topo;</li>
-<li>ligar e desligar fica nos Logs.</li>
+<li><strong>Cada disparo sai do e-mail de quem o cria</strong>, o e-mail cadastrado na conta do AD (campo <em>E-mail</em>). Qualquer usuário do AD
+  com e-mail cadastrado pode disparar: os dois módulos de e-mail são <strong>liberados para todos</strong> (na Gestão de Usuários eles aparecem
+  marcados como "Liberado para todos"). O que controla o uso são os <strong>créditos</strong>, que valem para os dois módulos.</li>
+<li><strong>Bloquear quando precisar:</strong></li>
+<li><strong>uma pessoa:</strong> Gestão de Usuários → <strong>Permissões</strong> da pessoa → desmarque o módulo de e-mail. Fica gravado um bloqueio
+    só para ela (linha <code>-email_ad</code> / <code>-email_lista</code> na tabela <code>permissoes</code>), e a lista mostra a etiqueta <em>Bloqueado</em>.
+    Para desbloquear, marque de novo;</li>
+<li><strong>todo mundo:</strong> Configurações → 3 → desmarque <strong>Módulos de e-mail liberados para todos</strong>. Os dois módulos voltam a
+    depender de permissão, como os outros (quem não tem aparece com <em>Aguardando liberação</em>). Os bloqueios individuais ficam
+    guardados e voltam a valer se a liberação geral for ligada de novo.</li>
+<li>O login no servidor de e-mail é o <strong>mesmo login e a mesma senha do AD</strong>. O formato do usuário no servidor de e-mail
+  (e-mail, login, <code>login@santaluzia.int</code> ou <code>SANTALUZIA\login</code>) é escolhido em <strong>Configurações → 3</strong>.</li>
+<li><strong>A senha vem do login:</strong></li>
+<li>ao entrar na Gestão TI com o AD, quem tem algum módulo que envia e-mail (disparos, Wi-Fi Visitante ou Configurações) fica com a
+    senha <strong>criptografada dentro do cookie da sessão</strong> (Fernet, chave derivada de <code>SECRET_KEY</code>). Nada vai para o banco, e ela some
+    ao sair ou quando a sessão expira;</li>
+<li>por isso o disparo e o "Enviar teste para mim" <strong>não pedem senha</strong>. Ela só é pedida se o servidor de e-mail recusar (a pessoa
+    trocou a senha no AD depois de entrar) ou se a sessão não tiver a senha (ex.: a permissão foi dada depois do login).
+    A senha digitada nesses casos passa a valer na sessão;</li>
+<li>antes de iniciar, a senha é conferida no servidor de e-mail: senha recusada não inicia o disparo nem gasta crédito;</li>
+<li>durante o disparo, ela fica guardada no banco <strong>criptografada só enquanto ele está em andamento</strong> (os blocos podem sair
+    horas depois) e é <strong>apagada</strong> quando ele é concluído ou cancelado;</li>
+<li>use HTTPS (<code>COOKIE_SEGURO=true</code>), já que o login e o cookie levam a senha da rede.</li>
+<li>Se a senha for trocada no AD no meio do disparo, o servidor de e-mail recusa, o disparo é <strong>pausado</strong>, a senha guardada é
+  apagada e a pessoa clica em <strong>Retomar</strong> e informa a senha nova. Só quem criou o disparo pode informar a senha.</li>
+<li>Conta sem e-mail no AD ou usuário local: a tela de disparos mostra um aviso e o envio não é liberado.</li>
+<li>O nome do remetente (padrão: o nome da pessoa) e o "Responder para" podem ser ajustados em cada disparo.</li>
+<li>O e-mail com a senha nova do <strong>Wi-Fi Visitante</strong> e os testes de <strong>Configurações</strong> também saem da conta de quem está logado.
+  Não há mais conta fixa do sistema (<code>geral@</code>) para configurar. Disparos criados antes desta versão terminam pela conta antiga.</li>
+<li><strong>Modo de teste</strong> (Configurações → 1): ligado, todos os envios saem da conta de teste informada ali (e-mail, senha ou
+  "o servidor não pede login", como o Mailpit), sem usar a conta de ninguém. A tela de disparos mostra a etiqueta <strong>modo de teste</strong>
+  e Configurações mostra um aviso.</li>
+</ul>
+<h3>Créditos</h3>
+<ul>
+<li><strong>1 crédito = 1 disparo</strong>, qualquer que seja o número de destinatários. O crédito é gasto ao <strong>iniciar</strong> o disparo.</li>
+<li>A barra no topo da tela de disparos mostra o saldo, o pedido em andamento e a resposta do último pedido, com os botões
+  <strong>Solicitar créditos</strong> (quantidade e motivo), <strong>Cancelar pedido</strong> e <strong>Extrato</strong>.</li>
+<li>Sem crédito, o disparo pode ser montado, mas não inicia: aparece a opção de pedir créditos.</li>
+<li><strong>Devolução automática:</strong> disparo que termina sem nenhum e-mail entregue (cancelado antes de sair ou com falha em todos)
+  devolve o crédito. Disparo que entregou pelo menos um e-mail não devolve.</li>
+<li><strong>Módulo Créditos de e-mail</strong> (<code>/m/creditos-email</code>):</li>
+<li><strong>Pedidos:</strong> aprovar (pode liberar outra quantidade) ou recusar, com resposta opcional para a pessoa;</li>
+<li><strong>Usuários e saldos:</strong> todos que já entraram na Gestão TI, com saldo, disparos feitos, último disparo,
+    e os botões <strong>Liberar créditos</strong> e <strong>Remover</strong> (sem precisar de pedido);</li>
+<li><strong>Extrato:</strong> todos os movimentos (créditos iniciais, liberados, removidos, pedidos aprovados, usados e devolvidos).</li>
+<li>Quem tem o módulo Créditos de e-mail (o adm geral sempre tem) <strong>envia sem limite</strong>. O módulo <strong>não</strong> é dado automaticamente
+  à equipe da TI no primeiro acesso: o adm geral concede na Gestão de Usuários.</li>
+<li><strong>Créditos iniciais</strong> de quem usa os disparos pela primeira vez: Configurações → 3 (padrão 0).</li>
+<li>Pedido novo avisa pelo Telegram/WhatsApp da TI (se configurados) e aparece como contador no card do módulo na tela inicial.</li>
+<li>Tudo fica nos Logs (pedido, aprovação, recusa, liberação, remoção, uso e devolução).</li>
 </ul>
 <h3>Passo a passo do disparo</h3>
 <ol>
@@ -889,9 +938,13 @@ Nesse caso, use a conta acima.</p>
      Repetidos são removidos e linhas inválidas são mostradas.</li>
 <li><strong>Mensagem:</strong> editor com formatação, variáveis <code>{nome}</code> e <code>{email}</code>, e <strong>Enviar teste para mim</strong>.
    - <strong>Imagens</strong> (botão, Ctrl+V ou arrastar): até <code>IMAGEM_MAX_MB</code> cada, embutidas no e-mail. Imagens coladas do Word são convertidas.
-   - <strong>Anexos:</strong> até <code>ANEXOS_MAX_MB</code> no total. Cada destinatário recebe uma cópia.</li>
+   - <strong>Anexos:</strong> até <code>ANEXOS_MAX_MB</code> no total. Cada destinatário recebe uma cópia.
+   - <strong>Campo Para:</strong> mostra para quem a mensagem vai, com o total de destinatários e a origem (usuários do AD ou o
+     arquivo TXT). Aparecem os 8 primeiros, com "e mais N"; <strong>Ver todos</strong> abre a lista (até 300 por vez), a <strong>busca</strong> acha
+     qualquer destinatário por nome ou e-mail, e <strong>Copiar e-mails</strong> copia todos, um por linha. O mesmo campo aparece na
+     etapa <strong>Revisar e enviar</strong>, antes da prévia da mensagem.</li>
 <li><strong>Blocos:</strong> quantidade ou tamanho dos blocos; envio <strong>automático</strong> (intervalo em minutos) ou <strong>manual</strong> (<em>Liberar próximo bloco</em>).</li>
-<li><strong>Revisar e enviar.</strong></li>
+<li><strong>Revisar e enviar:</strong> a confirmação mostra a conta que envia e o crédito que será usado.</li>
 </ol>
 <h3>Acompanhamento</h3>
 <ul>
@@ -910,19 +963,23 @@ Nesse caso, use a conta acima.</p>
 </thead>
 <tbody>
 <tr>
-<td><strong>1. Conta de envio</strong></td>
-<td><code>geral@</code> (fixa), modo de teste, forma de login no servidor (a própria conta, outra conta ou sem login) e senha</td>
+<td><strong>1. Conta que envia os e-mails</strong></td>
+<td>Explica que tudo sai da conta de quem está logado. Só tem o <strong>modo de teste</strong>: e-mail e senha da conta de teste, ou "o servidor não pede login"</td>
 </tr>
 <tr>
 <td><strong>2. Servidor de e-mail</strong></td>
-<td>Tipo (servidor próprio, Microsoft 365, Google, teste) preenche os campos; servidor, porta, segurança (STARTTLS/SSL/nenhuma). Botões <strong>Testar conexão</strong> e <strong>Enviar e-mail de teste</strong></td>
+<td>Tipo (servidor próprio, Microsoft 365, Google, teste) preenche os campos; servidor, porta, segurança (STARTTLS/SSL/nenhuma). Botões <strong>Testar conexão</strong> e <strong>Enviar e-mail de teste</strong>, que usam a conta de quem está testando (ou a de teste)</td>
 </tr>
 <tr>
-<td><strong>3. Limites</strong></td>
+<td><strong>3. Disparos de e-mail dos usuários</strong></td>
+<td><strong>Módulos de e-mail liberados para todos</strong> (liga/desliga), formato do usuário de login no servidor de e-mail (e-mail, login, UPN ou DOMÍNIO\login) e créditos iniciais</td>
+</tr>
+<tr>
+<td><strong>4. Limites</strong></td>
 <td>Pausa entre e-mails (em e-mails por minuto), tamanho dos anexos e das imagens, máximo de destinatários</td>
 </tr>
 <tr>
-<td><strong>4. Wi-Fi Visitante</strong></td>
+<td><strong>5. Wi-Fi Visitante</strong></td>
 <td>Banco do RADIUS, SSH, tabelas, Testar e Conferir formato (ver seção 9)</td>
 </tr>
 </tbody>
@@ -1269,7 +1326,7 @@ Cada execução conta como tentativa de login no AD: não repita com senha errad
 <tr>
 <td><code>SMTP_FROM</code></td>
 <td><code>geral@...</code></td>
-<td>Informativo: a conta é fixa no código</td>
+<td>Não é mais usado: cada envio sai da conta de quem está logado</td>
 </tr>
 <tr>
 <td><code>SMTP_FROM_NOME</code></td>
@@ -1290,6 +1347,21 @@ Cada execução conta como tentativa de login no AD: não repita com senha errad
 <td><code>CACHE_AD_MINUTOS</code></td>
 <td><code>10</code></td>
 <td>Validade da lista de e-mails do AD em memória</td>
+</tr>
+<tr>
+<td><code>SMTP_LOGIN_FORMATO</code></td>
+<td><code>email</code></td>
+<td>Usuário de login dos disparos no servidor de e-mail: <code>email</code>, <code>usuario</code>, <code>upn</code> ou <code>dominio</code></td>
+</tr>
+<tr>
+<td><code>CREDITOS_INICIAIS</code></td>
+<td><code>0</code></td>
+<td>Créditos de quem usa os disparos pela primeira vez</td>
+</tr>
+<tr>
+<td><code>EMAIL_PARA_TODOS</code></td>
+<td><code>sim</code></td>
+<td>Módulos de e-mail liberados para todos (<code>sim</code>) ou só com permissão (<code>nao</code>)</td>
 </tr>
 </tbody>
 </table>
@@ -1377,7 +1449,7 @@ sudo<span class="w"> </span><span class="nv">URL_GESTAO</span><span class="o">=<
 </ul>
 <h3>Conferência</h3>
 <div class="highlight"><pre><span></span><code>curl<span class="w"> </span>-s<span class="w"> </span>http://127.0.0.1:8090/health
-sudo<span class="w"> </span>docker<span class="w"> </span>ps<span class="w"> </span>--format<span class="w"> </span><span class="s1">&#39;{{.Names}} {{.Status}} {{.Ports}}&#39;</span>
+sudo<span class="w"> </span>docker<span class="w"> </span>ps<span class="w"> </span>--format<span class="w"> </span><span class="s1">'{{.Names}} {{.Status}} {{.Ports}}'</span>
 sudo<span class="w"> </span>docker<span class="w"> </span>logs<span class="w"> </span>--since<span class="w"> </span>10m<span class="w"> </span>gestao-ti-api<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-c<span class="w"> </span>agente/liberacao<span class="w">   </span><span class="c1"># maior que 0 = estações conversando</span>
 </code></pre></div>
 <h3>Depois da troca, no navegador</h3>
@@ -1427,16 +1499,16 @@ script do NETLOGON para <code>C:\ProgramData\PMSL\</code> pela GPO.</p>
 <li><strong>Testar numa máquina antes</strong>, pela pasta <code>teste</code>:
    <div class="highlight"><pre><span></span><code>sudo<span class="w"> </span>apt<span class="w"> </span>install<span class="w"> </span>-y<span class="w"> </span>smbclient
 <span class="nb">cd</span><span class="w"> </span>/opt/gestao-ti/saida-windows
-sudo<span class="w"> </span>smbclient<span class="w"> </span>//10.1.100.2/NETLOGON<span class="w"> </span>-U<span class="w"> </span><span class="s1">&#39;SANTA-LUZIA\seu.usuario&#39;</span><span class="w"> </span>-c<span class="w"> </span><span class="s1">&#39;cd PMSL-WiFi; mkdir teste; cd teste; put wlan-filter.ps1; ls&#39;</span>
+sudo<span class="w"> </span>smbclient<span class="w"> </span>//10.1.100.2/NETLOGON<span class="w"> </span>-U<span class="w"> </span><span class="s1">'SANTA-LUZIA\seu.usuario'</span><span class="w"> </span>-c<span class="w"> </span><span class="s1">'cd PMSL-WiFi; mkdir teste; cd teste; put wlan-filter.ps1; ls'</span>
 </code></pre></div>
    Na estação, como administrador:
    <div class="highlight"><pre><span></span><code><span class="nb">Copy-Item</span> <span class="p">\\</span><span class="n">santaluzia</span><span class="p">.</span><span class="n">int</span><span class="p">\</span><span class="n">NETLOGON</span><span class="p">\</span><span class="n">PMSL-WiFi</span><span class="p">\</span><span class="n">teste</span><span class="p">\</span><span class="n">wlan-filter</span><span class="p">.</span><span class="n">ps1</span> <span class="n">C</span><span class="p">:\</span><span class="n">ProgramData</span><span class="p">\</span><span class="n">PMSL</span><span class="p">\</span><span class="n">wlan-filter</span><span class="p">.</span><span class="n">ps1</span> <span class="n">-Force</span>
-<span class="n">powershell</span><span class="p">.</span><span class="n">exe</span> <span class="n">-NoProfile</span> <span class="n">-ExecutionPolicy</span> <span class="n">Bypass</span> <span class="o">-File</span> <span class="n">C</span><span class="p">:\</span><span class="n">ProgramData</span><span class="p">\</span><span class="n">PMSL</span><span class="p">\</span><span class="n">wlan-filter</span><span class="p">.</span><span class="n">ps1</span><span class="p">;</span> <span class="s2">&quot;Codigo de saida: $LASTEXITCODE&quot;</span>
+<span class="n">powershell</span><span class="p">.</span><span class="n">exe</span> <span class="n">-NoProfile</span> <span class="n">-ExecutionPolicy</span> <span class="n">Bypass</span> <span class="o">-File</span> <span class="n">C</span><span class="p">:\</span><span class="n">ProgramData</span><span class="p">\</span><span class="n">PMSL</span><span class="p">\</span><span class="n">wlan-filter</span><span class="p">.</span><span class="n">ps1</span><span class="p">;</span> <span class="s2">"Codigo de saida: $LASTEXITCODE"</span>
 </code></pre></div>
    Sem erro em vermelho e com código 0, está bom.</li>
 <li><strong>Distribuir para todas</strong>, guardando o atual como <code>.anterior</code> (o <code>del</code> evita que um <code>.anterior</code> antigo impeça o <code>rename</code>):
    <div class="highlight"><pre><span></span><code><span class="nb">cd</span><span class="w"> </span>/opt/gestao-ti/saida-windows
-sudo<span class="w"> </span>smbclient<span class="w"> </span>//10.1.100.2/NETLOGON<span class="w"> </span>-U<span class="w"> </span><span class="s1">&#39;SANTA-LUZIA\seu.usuario&#39;</span><span class="w"> </span>-c<span class="w"> </span><span class="s1">&#39;cd PMSL-WiFi; del wlan-filter.ps1.anterior; rename wlan-filter.ps1 wlan-filter.ps1.anterior; put wlan-filter.ps1; ls&#39;</span>
+sudo<span class="w"> </span>smbclient<span class="w"> </span>//10.1.100.2/NETLOGON<span class="w"> </span>-U<span class="w"> </span><span class="s1">'SANTA-LUZIA\seu.usuario'</span><span class="w"> </span>-c<span class="w"> </span><span class="s1">'cd PMSL-WiFi; del wlan-filter.ps1.anterior; rename wlan-filter.ps1 wlan-filter.ps1.anterior; put wlan-filter.ps1; ls'</span>
 </code></pre></div></li>
 <li><strong>Conferir numa estação</strong>: <code>gpupdate /force</code> e
    <code>Select-String -Path C:\ProgramData\PMSL\wlan-filter.ps1 -Pattern 'Executar-Comandos' -Quiet</code> deve responder <code>True</code>.</li>
@@ -1477,15 +1549,15 @@ sudo<span class="w"> </span>smbclient<span class="w"> </span>//10.1.100.2/NETLOG
 </table>
 <p>Clique em <strong>OK</strong> na janela <strong>PMSL - Filtro WiFi Properties</strong> para gravar; fechar pelo <strong>X</strong> ou <strong>Cancel</strong> perde as alterações.</p>
 <p>Conferir o que ficou gravado nos dois DCs (use o <strong>nome</strong> do DC; pelo IP o Windows recusa o acesso ao SYSVOL):
-<div class="highlight"><pre><span></span><code><span class="k">foreach</span> <span class="p">(</span><span class="nv">$dc</span> <span class="k">in</span> <span class="s1">&#39;PMSL-AD01&#39;</span><span class="p">,</span><span class="s1">&#39;PMSL-AD02&#39;</span><span class="p">)</span> <span class="p">{</span> <span class="s2">&quot;== $dc&quot;</span><span class="p">;</span> <span class="nv">$x</span> <span class="p">=</span> <span class="s2">&quot;\\$dc.santaluzia.int\SYSVOL\santaluzia.int\Policies\{E8D3B83E-9342-4AD8-8953-FC6D3C45AE62}\Machine\Preferences\ScheduledTasks\ScheduledTasks.xml&quot;</span><span class="p">;</span> <span class="p">(</span><span class="nb">Get-Item</span> <span class="nv">$x</span><span class="p">).</span><span class="n">LastWriteTime</span><span class="p">;</span> <span class="p">(</span><span class="no">[regex]</span><span class="p">::</span><span class="n">Matches</span><span class="p">((</span><span class="nb">Get-Content</span> <span class="nv">$x</span> <span class="n">-Raw</span><span class="p">),</span> <span class="s1">&#39;&lt;StartBoundary&gt;([^&lt;]+)&lt;/StartBoundary&gt;&#39;</span><span class="p">)</span> <span class="p">|</span> <span class="k">ForEach</span><span class="n">-Object</span> <span class="p">{</span> <span class="nv">$_</span><span class="p">.</span><span class="n">Groups</span><span class="p">[</span><span class="n">1</span><span class="p">].</span><span class="n">Value</span> <span class="p">})</span> <span class="n">-join</span> <span class="s1">&#39; | &#39;</span><span class="p">;</span> <span class="p">(</span><span class="no">[regex]</span><span class="p">::</span><span class="n">Matches</span><span class="p">((</span><span class="nb">Get-Content</span> <span class="nv">$x</span> <span class="n">-Raw</span><span class="p">),</span> <span class="s1">&#39;&lt;Interval&gt;([^&lt;]+)&lt;/Interval&gt;&#39;</span><span class="p">)</span> <span class="p">|</span> <span class="k">ForEach</span><span class="n">-Object</span> <span class="p">{</span> <span class="nv">$_</span><span class="p">.</span><span class="n">Groups</span><span class="p">[</span><span class="n">1</span><span class="p">].</span><span class="n">Value</span> <span class="p">})</span> <span class="n">-join</span> <span class="s1">&#39; | &#39;</span> <span class="p">}</span>
+<div class="highlight"><pre><span></span><code><span class="k">foreach</span> <span class="p">(</span><span class="nv">$dc</span> <span class="k">in</span> <span class="s1">'PMSL-AD01'</span><span class="p">,</span><span class="s1">'PMSL-AD02'</span><span class="p">)</span> <span class="p">{</span> <span class="s2">"== $dc"</span><span class="p">;</span> <span class="nv">$x</span> <span class="p">=</span> <span class="s2">"\\$dc.santaluzia.int\SYSVOL\santaluzia.int\Policies\{E8D3B83E-9342-4AD8-8953-FC6D3C45AE62}\Machine\Preferences\ScheduledTasks\ScheduledTasks.xml"</span><span class="p">;</span> <span class="p">(</span><span class="nb">Get-Item</span> <span class="nv">$x</span><span class="p">).</span><span class="n">LastWriteTime</span><span class="p">;</span> <span class="p">(</span><span class="no">[regex]</span><span class="p">::</span><span class="n">Matches</span><span class="p">((</span><span class="nb">Get-Content</span> <span class="nv">$x</span> <span class="n">-Raw</span><span class="p">),</span> <span class="s1">'&lt;StartBoundary&gt;([^&lt;]+)&lt;/StartBoundary&gt;'</span><span class="p">)</span> <span class="p">|</span> <span class="k">ForEach</span><span class="n">-Object</span> <span class="p">{</span> <span class="nv">$_</span><span class="p">.</span><span class="n">Groups</span><span class="p">[</span><span class="n">1</span><span class="p">].</span><span class="n">Value</span> <span class="p">})</span> <span class="n">-join</span> <span class="s1">' | '</span><span class="p">;</span> <span class="p">(</span><span class="no">[regex]</span><span class="p">::</span><span class="n">Matches</span><span class="p">((</span><span class="nb">Get-Content</span> <span class="nv">$x</span> <span class="n">-Raw</span><span class="p">),</span> <span class="s1">'&lt;Interval&gt;([^&lt;]+)&lt;/Interval&gt;'</span><span class="p">)</span> <span class="p">|</span> <span class="k">ForEach</span><span class="n">-Object</span> <span class="p">{</span> <span class="nv">$_</span><span class="p">.</span><span class="n">Groups</span><span class="p">[</span><span class="n">1</span><span class="p">].</span><span class="n">Value</span> <span class="p">})</span> <span class="n">-join</span> <span class="s1">' | '</span> <span class="p">}</span>
 </code></pre></div></p>
 <p>Conferir numa estação:
 <div class="highlight"><pre><span></span><code><span class="n">gpupdate</span> <span class="p">/</span><span class="n">force</span>
-<span class="p">(</span><span class="nb">Get-ScheduledTask</span> <span class="n">-TaskName</span> <span class="s1">&#39;PMSL - Filtro WiFi&#39;</span><span class="p">).</span><span class="n">Triggers</span> <span class="p">|</span> <span class="nb">Select-Object</span> <span class="n">StartBoundary</span><span class="p">,</span> <span class="p">@{</span><span class="n">n</span><span class="p">=</span><span class="s1">&#39;Repete&#39;</span><span class="p">;</span><span class="n">e</span><span class="p">={</span><span class="nv">$_</span><span class="p">.</span><span class="n">Repetition</span><span class="p">.</span><span class="n">Interval</span><span class="p">}}</span>
-<span class="nb">Get-ScheduledTaskInfo</span> <span class="n">-TaskName</span> <span class="s1">&#39;PMSL - Filtro WiFi&#39;</span> <span class="p">|</span> <span class="nb">Select-Object</span> <span class="n">LastRunTime</span><span class="p">,</span> <span class="n">LastTaskResult</span><span class="p">,</span> <span class="n">NextRunTime</span>
+<span class="p">(</span><span class="nb">Get-ScheduledTask</span> <span class="n">-TaskName</span> <span class="s1">'PMSL - Filtro WiFi'</span><span class="p">).</span><span class="n">Triggers</span> <span class="p">|</span> <span class="nb">Select-Object</span> <span class="n">StartBoundary</span><span class="p">,</span> <span class="p">@{</span><span class="n">n</span><span class="p">=</span><span class="s1">'Repete'</span><span class="p">;</span><span class="n">e</span><span class="p">={</span><span class="nv">$_</span><span class="p">.</span><span class="n">Repetition</span><span class="p">.</span><span class="n">Interval</span><span class="p">}}</span>
+<span class="nb">Get-ScheduledTaskInfo</span> <span class="n">-TaskName</span> <span class="s1">'PMSL - Filtro WiFi'</span> <span class="p">|</span> <span class="nb">Select-Object</span> <span class="n">LastRunTime</span><span class="p">,</span> <span class="n">LastTaskResult</span><span class="p">,</span> <span class="n">NextRunTime</span>
 </code></pre></div>
 E no servidor, cada máquina deve aparecer com 4 ou 5 consultas em 5 minutos:
-<div class="highlight"><pre><span></span><code>sudo<span class="w"> </span>docker<span class="w"> </span>logs<span class="w"> </span>--since<span class="w"> </span>5m<span class="w"> </span>gestao-ti-api<span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-o<span class="w"> </span><span class="s1">&#39;hostname=[^&amp;]*&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>sort<span class="w"> </span><span class="p">|</span><span class="w"> </span>uniq<span class="w"> </span>-c<span class="w"> </span><span class="p">|</span><span class="w"> </span>sort<span class="w"> </span>-rn<span class="w"> </span><span class="p">|</span><span class="w"> </span>head
+<div class="highlight"><pre><span></span><code>sudo<span class="w"> </span>docker<span class="w"> </span>logs<span class="w"> </span>--since<span class="w"> </span>5m<span class="w"> </span>gestao-ti-api<span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-o<span class="w"> </span><span class="s1">'hostname=[^&amp;]*'</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>sort<span class="w"> </span><span class="p">|</span><span class="w"> </span>uniq<span class="w"> </span>-c<span class="w"> </span><span class="p">|</span><span class="w"> </span>sort<span class="w"> </span>-rn<span class="w"> </span><span class="p">|</span><span class="w"> </span>head
 </code></pre></div></p>
 <h3>Atalho do portal</h3>
 <ol>
@@ -1522,6 +1594,10 @@ E no servidor, cada máquina deve aparecer com 4 ou 5 consultas em 5 minutos:
 <tr>
 <td><code>/m/email?origem=ad</code>, <code>/m/email?origem=lista</code></td>
 <td>E-mails em lote</td>
+</tr>
+<tr>
+<td><code>/m/creditos-email</code></td>
+<td>Créditos de e-mail</td>
 </tr>
 <tr>
 <td><code>/m/usuarios</code>, <code>/m/configuracoes</code>, <code>/m/logs</code></td>
@@ -1580,7 +1656,11 @@ E no servidor, cada máquina deve aparecer com 4 ou 5 consultas em 5 minutos:
 </tr>
 <tr>
 <td><code>/api/email</code></td>
-<td><code>config</code>, <code>ad/usuarios</code>, <code>lista/ler</code>, <code>imagens</code>, <code>remetentes</code>, <code>teste</code>, <code>disparos</code> (+ <code>anexos</code>, <code>iniciar</code>, <code>proximo-bloco</code>, <code>pausar</code>, <code>retomar</code>, <code>cancelar</code>, <code>destinatarios</code>, <code>relatorio.csv</code>)</td>
+<td><code>config</code>, <code>ad/usuarios</code>, <code>lista/ler</code>, <code>imagens</code>, <code>remetentes</code>, <code>teste</code> (<code>senha</code>), <code>disparos</code> (+ <code>anexos</code>, <code>iniciar</code> / <code>retomar</code> / <code>proximo-bloco</code> com <code>senha</code> quando pedida — 428 = informar a senha, <code>pausar</code>, <code>cancelar</code>, <code>destinatarios</code>, <code>relatorio.csv</code>)</td>
+</tr>
+<tr>
+<td><code>/api/email/creditos</code></td>
+<td>Quem dispara: <code>meu</code>, <code>POST pedidos</code>, <code>pedidos/{id}/cancelar</code>. Quem gerencia: <code>resumo</code>, <code>GET pedidos?status=</code>, <code>pedidos/{id}/aprovar</code> (<code>quantidade</code>, <code>resposta</code>), <code>pedidos/{id}/recusar</code>, <code>usuarios</code>, <code>conceder</code> (<code>usuario</code>, <code>quantidade</code> negativa remove, <code>motivo</code>), <code>movimentos?usuario=</code></td>
 </tr>
 <tr>
 <td><code>/api/configuracoes</code></td>
@@ -1623,7 +1703,19 @@ E no servidor, cada máquina deve aparecer com 4 ou 5 consultas em 5 minutos:
 </tr>
 <tr>
 <td><code>disparos</code>, <code>disparo_destinatarios</code>, <code>disparo_anexos</code></td>
-<td>E-mails em lote</td>
+<td>E-mails em lote. O disparo guarda a conta que envia (<code>conta_propria</code>, <code>login_envio</code>), a senha criptografada só durante o envio (<code>senha_cifrada</code>) e o crédito (<code>credito_usado</code>, <code>credito_devolvido</code>)</td>
+</tr>
+<tr>
+<td><code>creditos_email</code></td>
+<td>Saldo de créditos de cada login</td>
+</tr>
+<tr>
+<td><code>creditos_movimentos</code></td>
+<td>Extrato dos créditos (tipo, quantidade, saldo depois, quem, disparo/pedido)</td>
+</tr>
+<tr>
+<td><code>creditos_pedidos</code></td>
+<td>Pedidos de créditos e a decisão (quem, quando, quantidade liberada, resposta)</td>
 </tr>
 <tr>
 <td><code>configuracoes</code></td>
@@ -1713,8 +1805,23 @@ E no servidor, cada máquina deve aparecer com 4 ou 5 consultas em 5 minutos:
 </tr>
 <tr>
 <td>E-mail de teste não chega</td>
-<td>SMTP ou <code>geral@</code> não liberada</td>
+<td>Servidor SMTP errado ou login recusado</td>
 <td>Testar conexão; usar o modo de teste</td>
+</tr>
+<tr>
+<td>"O servidor de e-mail recusou a senha" com a senha certa</td>
+<td>Formato do login diferente do esperado pelo servidor, ou SMTP autenticado desligado na caixa</td>
+<td>Trocar o formato em Configurações → 3 e testar com <em>Enviar teste para mim</em>; pedir ao responsável pelo e-mail para liberar o SMTP autenticado</td>
+</tr>
+<tr>
+<td>"Sua conta do AD não tem e-mail cadastrado"</td>
+<td>Campo E-mail vazio na conta do AD</td>
+<td>Preencher o e-mail no AD; a pessoa sai e entra de novo na Gestão TI</td>
+</tr>
+<tr>
+<td>Disparo pausado pedindo a senha</td>
+<td>A senha foi trocada no AD durante o envio</td>
+<td>Quem criou clica em <strong>Retomar</strong> e informa a senha nova</td>
 </tr>
 <tr>
 <td>Disparo pausado sozinho</td>
@@ -1772,7 +1879,7 @@ sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec<
 sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>-it<span class="w"> </span>gestao-ti-db<span class="w"> </span>psql<span class="w"> </span>-U<span class="w"> </span>gestao<span class="w"> </span>gestao_ti<span class="w">         </span><span class="c1"># console do banco</span>
 </code></pre></div>
 <p><strong>Senha do <code>admin</code> local esquecida:</strong></p>
-<div class="highlight"><pre><span></span><code>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>-it<span class="w"> </span>gestao-ti-api<span class="w"> </span>python<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;from app.auth import gerar_hash; from app.db import *; s=SessionLocal(); a=s.query(Administrador).filter_by(usuario=&#39;admin&#39;).one(); a.senha_hash=gerar_hash(&#39;NovaSenha123&#39;); a.ativo=True; s.commit()&quot;</span>
+<div class="highlight"><pre><span></span><code>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>-it<span class="w"> </span>gestao-ti-api<span class="w"> </span>python<span class="w"> </span>-c<span class="w"> </span><span class="s2">"from app.auth import gerar_hash; from app.db import *; s=SessionLocal(); a=s.query(Administrador).filter_by(usuario='admin').one(); a.senha_hash=gerar_hash('NovaSenha123'); a.ativo=True; s.commit()"</span>
 </code></pre></div></section></main>
 </div>
 

@@ -11,7 +11,7 @@ from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 
 from sqlalchemy import select
 
-from . import auditoria, config, modulos
+from . import ajustes, auditoria, config, modulos
 from .db import Administrador, Permissao, SessaoEncerrada, SessionLocal
 
 COOKIE_ADMIN = "gestao_ti_sessao"
@@ -106,8 +106,37 @@ def _validade(ser, sessao: str, horas_max: int) -> tuple[dict, object]:
     return dados, emitido
 
 
-def token_admin(admin_id: int, inicio: float | None = None) -> str:
-    return _ser_admin.dumps({"id": admin_id, "ini": int(inicio or time.time())})
+def token_admin(admin_id: int, inicio: float | None = None, senha_cifrada: str | None = None) -> str:
+    """Cookie do painel. senha_cifrada ("sm"): senha do AD criptografada (Fernet), usada so para entrar no servidor
+    de e-mail com a conta da propria pessoa. Fica so no cookie (nada no banco) e some ao sair ou expirar a sessao."""
+    dados = {"id": admin_id, "ini": int(inicio or time.time())}
+    if senha_cifrada:
+        dados["sm"] = senha_cifrada
+    return _ser_admin.dumps(dados)
+
+
+def gravar_cookie_admin(response, token: str) -> None:
+    response.set_cookie(COOKIE_ADMIN, token, httponly=True, samesite="strict", secure=config.COOKIE_SEGURO,
+                        max_age=config.SESSAO_HORAS * 3600)
+
+
+def senha_da_sessao(sessao: str | None) -> str | None:
+    """Senha do AD guardada (criptografada) no cookie no login; None se nao houver."""
+    if not sessao:
+        return None
+    try:
+        return ajustes.decifrar(ler_sessao_admin(sessao).get("sm"))
+    except HTTPException:
+        return None
+
+
+def trocar_senha_na_sessao(response, sessao: str | None, senha: str) -> None:
+    """A pessoa digitou a senha atual (ex.: trocou no AD depois de entrar): passa a valer na sessao."""
+    try:
+        dados = ler_sessao_admin(sessao)
+    except HTTPException:
+        return
+    gravar_cookie_admin(response, token_admin(dados["id"], dados.get("ini"), ajustes.cifrar(senha)))
 
 
 def ler_sessao_admin(sessao: str | None) -> dict:
@@ -216,5 +245,6 @@ def _exigir_concessao(request: Request, admin: Administrador = Depends(admin_atu
 AdminDep = Depends(admin_atual)
 ConcederDep = Depends(_exigir_concessao)
 UsuarioDep = Depends(usuario_atual)
+SessaoCookie = Cookie(default=None, alias=COOKIE_ADMIN)
 AgenteDep = Depends(exigir_agente)
 WifiDep = exigir_modulo("wifi")

@@ -13,6 +13,8 @@
   <header id="topo"></header>
   <main class="conteudo">
     <div id="aviso-smtp" class="aviso-caixa oculto" style="margin-bottom:14px"></div>
+    <div id="aviso-email" class="aviso-caixa oculto" style="margin-bottom:14px"></div>
+    <div id="creditos" class="creditos-barra oculto"></div>
     <div class="barra">
       <nav class="abas" id="abas">
         <button class="aba" data-aba="disparos">Disparos</button>
@@ -35,12 +37,12 @@
 
       <!-- etapa 1: destinatarios do AD -->
       <section class="cartao pilha etapa-painel" data-etapa="1" id="dest-ad">
-        <div><h2>Usuários ativos do AD com e-mail</h2>
-          <p class="ajuda" id="ad-info">Carregando a lista do AD…</p></div>
+        <div><h2>Servidores da Prefeitura com e-mail</h2>
+          <p class="ajuda" id="ad-info">Carregando a lista de servidores…</p></div>
         <div class="filtros" style="margin:0">
           <input class="entrada" id="ad-busca" placeholder="Buscar por nome, login ou e-mail">
-          <select class="entrada" id="ad-unidade"><option value="">Todas as unidades (OU)</option></select>
-          <button class="btn" id="ad-atualizar" title="Busca de novo no AD">Atualizar do AD</button>
+          <select class="entrada" id="ad-unidade"><option value="">Todos os setores</option></select>
+          <button class="btn" id="ad-atualizar" title="Busca a lista de novo">Atualizar lista</button>
         </div>
         <div class="barra" style="margin:0">
           <span class="contador"><b id="ad-sel">0</b> selecionados de <span id="ad-total">0</span></span>
@@ -49,7 +51,7 @@
           <button class="btn peq" id="ad-desmarcar">Desmarcar os filtrados</button>
           <button class="btn peq contorno-perigo" id="ad-limpar">Limpar seleção</button>
         </div>
-        <div class="tabela-caixa"><table class="tabela"><thead><tr><th style="width:36px"><input type="checkbox" id="ad-pagina" title="Marcar esta página"></th><th>Nome</th><th>E-mail</th><th>Login</th><th>Unidade (OU)</th></tr></thead><tbody id="ad-linhas"></tbody></table></div>
+        <div class="tabela-caixa"><table class="tabela"><thead><tr><th style="width:36px"><input type="checkbox" id="ad-pagina" title="Marcar esta página"></th><th>Nome</th><th>E-mail</th><th>Login</th><th>Setor</th></tr></thead><tbody id="ad-linhas"></tbody></table></div>
         <div class="paginacao"><span id="ad-pag-info"></span><button class="btn peq" id="ad-ant">Anterior</button><button class="btn peq" id="ad-prox">Próxima</button></div>
       </section>
 
@@ -65,7 +67,7 @@
       <section class="cartao pilha etapa-painel" data-etapa="2">
         <div class="linha-campos">
           <div class="campo"><label for="m-titulo">Nome do disparo (só para controle interno)</label><input class="entrada" id="m-titulo" placeholder="ex.: Aviso de manutenção do sistema"></div>
-          <div class="campo"><label for="m-remetente-email">Enviado pela conta</label><input class="entrada" id="m-remetente-email" readonly title="Todos os disparos saem desta conta (definida em Configurações)"></div>
+          <div class="campo"><label for="m-remetente-email">Enviado pela sua conta</label><input class="entrada" id="m-remetente-email" readonly title="O disparo sai do seu e-mail, cadastrado no AD"></div>
           <div class="campo"><label for="m-remetente">Nome do remetente</label><input class="entrada" id="m-remetente"></div>
           <div class="campo"><label for="m-responder">Responder para (opcional)</label><input class="entrada" id="m-responder" placeholder="ex.: ti@santaluzia.mg.gov.br"></div>
         </div>
@@ -152,6 +154,7 @@ const params = new URLSearchParams(location.search);
 let CFG = null, ORIGEM = null, aba = 'disparos', etapa = 1, timer = null;
 let AD = [], SEL = new Set(), filtrados = [], pagina = 0;
 let LISTA = null, LISTA_NOME = '', ANEXOS = [];
+let SENHA = null;   // senha da rede digitada nesta tela (so na memoria da pagina; nao fica salva no navegador)
 const POR_PAGINA = 100;
 
 // ---------------------------------------------------------------- abertura
@@ -159,10 +162,10 @@ async function abrir() {
   if (!await exigirSessao('email_ad', 'email_lista')) return;
   CFG = await chamar('/api/email/config');
   ORIGEM = params.get('origem') === 'ad' && CFG.pode_ad ? 'ad' : (params.get('origem') === 'lista' && CFG.pode_lista ? 'lista' : (CFG.pode_ad ? 'ad' : 'lista'));
-  montarTopo(ORIGEM === 'ad' ? 'E-mails para usuários do AD' : 'E-mails por lista (TXT)', ORIGEM === 'ad' ? 'email' : 'lista');
+  montarTopo(ORIGEM === 'ad' ? 'E-mails para servidores da Prefeitura' : 'E-mails por lista', ORIGEM === 'ad' ? 'email' : 'lista');
   if (CFG.pode_ad && CFG.pode_lista) {
     const outra = ORIGEM === 'ad' ? 'lista' : 'ad';
-    $('#troca-origem').innerHTML = `<a class="btn" href="/m/email?origem=${outra}">${outra === 'ad' ? 'Ir para: usuários do AD' : 'Ir para: lista TXT'}</a>`;
+    $('#troca-origem').innerHTML = `<a class="btn" href="/m/email?origem=${outra}">${outra === 'ad' ? 'Ir para: servidores da Prefeitura' : 'Ir para: e-mails por lista'}</a>`;
     $('#troca-origem').classList.remove('oculto');
   }
   if (!CFG.smtp_configurado) {
@@ -170,18 +173,20 @@ async function abrir() {
       + (CFG.pode_configurar ? 'no módulo <a href="/m/configuracoes">Configurações</a>.' : '. Peça à TI para configurar.');
     $('#aviso-smtp').classList.remove('oculto');
   }
-  $('#m-remetente').value = CFG.remetente_nome || '';
-  // Remetentes que a pessoa pode usar: o proprio e-mail e os aliases da conta no AD (e o padrao, para a TI)
+  $('#m-remetente').value = EU.nome || CFG.remetente_nome || '';
+  // O disparo sai do e-mail de quem cria (cadastrado no AD). Com o modo de teste ligado, sai da conta de teste.
   try {
     const rem = await chamar('/api/email/remetentes');
     $('#m-remetente-email').value = rem.length ? rem[0].email : '';
     const teste = rem[0]?.tipo === 'teste';
     $('#m-remetente-email').classList.toggle('modo-teste', teste);
-    $('#m-remetente-email').title = teste ? 'Modo de teste ligado em Configurações: os e-mails saem desta conta, não da geral@.' : 'Todos os disparos saem desta conta.';
+    $('#m-remetente-email').title = teste ? 'Modo de teste ligado em Configurações: os e-mails saem da conta de teste.' : 'O disparo sai do seu e-mail, com o seu login e senha da rede.';
     const rot = document.querySelector('label[for=m-remetente-email]');
-    rot.innerHTML = 'Enviado pela conta' + (teste ? ' <span class="tag teste">modo de teste</span>' : '');
-    $('#m-remetente-email').placeholder = 'conta de envio não configurada';
+    rot.innerHTML = (teste ? 'Enviado pela conta' : 'Enviado pela sua conta') + (teste ? ' <span class="tag teste">modo de teste</span>' : '');
+    $('#m-remetente-email').placeholder = 'sua conta não tem e-mail cadastrado';
   } catch (e) { $('#m-remetente-email').value = ''; }
+  if (CFG.sem_email_motivo) { $('#aviso-email').innerHTML = `<b>Não dá para disparar pela sua conta.</b> ${esc(CFG.sem_email_motivo)}`; $('#aviso-email').classList.remove('oculto'); }
+  renderCreditos(CFG.creditos);
   $('#dest-ad').classList.toggle('oculto', ORIGEM !== 'ad');
   $('#dest-lista').classList.toggle('oculto', ORIGEM !== 'lista');
   $('#anexos-info').textContent = `PDF, Word, Excel, imagens e outros documentos, até ${CFG.anexos_max_mb} MB no total. Arquivos executáveis (.exe, .bat, .js…) não são aceitos.`;
@@ -201,15 +206,15 @@ function trocarAba(nova) {
 
 // ---------------------------------------------------------------- etapa 1: AD
 async function carregarAD(atualizar) {
-  $('#ad-info').textContent = 'Carregando a lista do AD… (pode levar alguns segundos)';
+  $('#ad-info').textContent = 'Carregando a lista de servidores… (pode levar alguns segundos)';
   try {
     const r = await chamar('/api/email/ad/usuarios' + (atualizar ? '?atualizar=true' : ''));
     AD = r.usuarios;
-    $('#ad-unidade').innerHTML = '<option value="">Todas as unidades (OU)</option>' + r.unidades.map(u => `<option>${esc(u)}</option>`).join('');
-    $('#ad-info').textContent = `${numero(r.total)} usuários ativos com e-mail · lista do AD de ${r.atualizado_em}`;
+    $('#ad-unidade').innerHTML = '<option value="">Todos os setores</option>' + r.unidades.map(u => `<option>${esc(u)}</option>`).join('');
+    $('#ad-info').textContent = `${numero(r.total)} servidores com e-mail · lista atualizada em ${r.atualizado_em}`;
     $('#ad-total').textContent = numero(r.total);
     filtrarAD();
-  } catch (e) { $('#ad-info').textContent = 'Não foi possível carregar a lista do AD: ' + e.message; }
+  } catch (e) { $('#ad-info').textContent = 'Não foi possível carregar a lista de servidores: ' + e.message; }
 }
 function filtrarAD() {
   const q = $('#ad-busca').value.trim().toLowerCase(), un = $('#ad-unidade').value;
@@ -344,14 +349,117 @@ $('#btn-teste').onclick = async () => {
   const r = await Swal.fire({ title: 'Enviar um teste', input: 'email', inputValue: EU.email || '', inputLabel: 'Para qual e-mail?', showCancelButton: true, confirmButtonText: 'Enviar teste', cancelButtonText: 'Voltar',
     footer: ANEXOS.length ? 'O teste vai sem os anexos. Eles são conferidos na revisão.' : '' });
   if (!r.isConfirmed) return;
-  try { await chamar('/api/email/teste', { method: 'POST', body: JSON.stringify({ para: r.value, assunto: m.assunto, corpo_html: m.corpo_html, remetente_nome: m.remetente_nome, remetente_email: m.remetente_email, responder_para: m.responder_para }) }); toast('Teste enviado. Confira a caixa de entrada.'); }
-  catch (e) { erro(e); }
+  const corpo = { para: r.value, assunto: m.assunto, corpo_html: m.corpo_html, remetente_nome: m.remetente_nome, remetente_email: m.remetente_email, responder_para: m.responder_para };
+  // Normalmente usa a senha do login (guardada na sessao); so pede se faltar ou se o servidor de e-mail recusar
+  let pedir = CFG.precisa_senha || !!SENHA, aviso = null;
+  for (let tentativa = 0; tentativa < 4; tentativa++) {
+    if (pedir) { const s = await obterSenha(aviso); if (s === null) return; corpo.senha = s; }
+    try {
+      Swal.fire({ title: 'Enviando o teste…', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+      await chamar('/api/email/teste', { method: 'POST', body: JSON.stringify(corpo) });
+      if (corpo.senha) CFG.precisa_senha = false;
+      Swal.close(); toast('Teste enviado. Confira a caixa de entrada.'); return;
+    } catch (e) {
+      Swal.close();
+      if (senhaRecusada(e)) { SENHA = null; pedir = true; aviso = 'Senha recusada. Digite de novo'; continue; }
+      if (e.status === 428) { pedir = true; aviso = null; continue; }
+      return erro(e);
+    }
+  }
 };
+
+// ---------------------------------------------------------------- senha da rede (envio pela propria conta)
+const senhaRecusada = e => e.status === 422 && /senha/i.test(e.message);
+async function pedirSenha(aviso) {
+  const r = await Swal.fire({ title: aviso || 'Sua senha da rede', input: 'password', inputLabel: `Para enviar pelo seu e-mail (${$('#m-remetente-email').value || EU.email || ''})`,
+    inputPlaceholder: 'a mesma senha do login', inputAttributes: { autocomplete: 'current-password' }, icon: aviso ? 'warning' : undefined,
+    html: '<p class="ajuda" style="margin:0">É a mesma senha que você usa para entrar na Gestão TI e no computador. '
+      + (aviso ? 'O servidor de e-mail não aceitou a senha do seu login (ela pode ter sido trocada depois que você entrou). ' : '')
+      + 'Ela é conferida no servidor de e-mail e passa a valer até você sair da Gestão TI.</p>',
+    showCancelButton: true, confirmButtonText: 'Continuar', cancelButtonText: 'Voltar',
+    inputValidator: v => !v ? 'Digite a sua senha.' : undefined });
+  return r.isConfirmed ? r.value : null;
+}
+async function obterSenha(aviso) {
+  if (SENHA && !aviso) return SENHA;
+  const s = await pedirSenha(aviso);
+  if (s !== null) SENHA = s;
+  return s;
+}
+
+// ---------------------------------------------------------------- creditos (1 credito = 1 disparo)
+const txtCreditos = n => `${numero(n)} crédito${Number(n) === 1 ? '' : 's'}`;
+function renderCreditos(c) {
+  if (!c) return;
+  CFG.creditos = c;
+  const el = $('#creditos'); el.classList.remove('oculto');
+  if (c.ilimitado) {
+    el.className = 'creditos-barra ilimitado';
+    el.innerHTML = `<span class="ico">${icone('moeda', 22)}</span><div><b>Envio sem limite de créditos</b><small>Você gerencia os créditos de e-mail.</small></div>
+      <span style="flex:1"></span><a class="btn peq" href="/m/creditos-email">Gerenciar créditos</a>`;
+    return;
+  }
+  const p = c.pedido_pendente, u = c.ultimo_pedido;
+  const recente = u && u.decidido_em && (Date.now() - new Date(u.decidido_em)) < 7 * 864e5 && u.status !== 'cancelado';
+  el.className = 'creditos-barra' + (c.saldo < 1 ? ' zerado' : '');
+  el.innerHTML = `<span class="ico">${icone('moeda', 22)}</span>
+    <div><b>${c.saldo > 0 ? `Você tem ${txtCreditos(c.saldo)}` : 'Você não tem créditos'}</b><small>Cada disparo usa 1 crédito. Disparo que não entrega nenhum e-mail devolve o crédito.</small></div>
+    <span style="flex:1"></span>
+    ${p ? `<span class="tag pendente" title="${esc(p.motivo)}">Pedido de ${txtCreditos(p.quantidade)} aguardando a TI</span><button class="btn peq" data-cred="cancelar" data-id="${p.id}">Cancelar pedido</button>`
+        : `<button class="btn peq ${c.saldo < 1 ? 'primario' : 'indigo'}" data-cred="pedir">Solicitar créditos</button>`}
+    <button class="btn peq" data-cred="extrato">Extrato</button>
+    ${!p && recente ? `<div class="creditos-resposta ${u.status}">Seu pedido nº ${u.id} foi <b>${u.status === 'aprovado' ? `aprovado: +${txtCreditos(u.quantidade_aprovada)}` : 'recusado'}</b>${u.resposta ? ` · “${esc(u.resposta)}”` : ''}</div>` : ''}`;
+}
+async function atualizarCreditos() { try { renderCreditos((await chamar('/api/email/creditos/meu'))); } catch { /* fica o que estava */ } }
+$('#creditos').addEventListener('click', ev => {
+  const b = ev.target.closest('[data-cred]'); if (!b) return;
+  if (b.dataset.cred === 'pedir') solicitarCreditos();
+  if (b.dataset.cred === 'cancelar') cancelarPedido(Number(b.dataset.id));
+  if (b.dataset.cred === 'extrato') verExtrato();
+});
+async function solicitarCreditos() {
+  const r = await Swal.fire({ title: 'Solicitar créditos', confirmButtonText: 'Enviar pedido', cancelButtonText: 'Voltar', showCancelButton: true, focusConfirm: false,
+    html: `<div class="pilha" style="text-align:left">
+      <p class="ajuda" style="margin:0">Cada crédito vale um disparo. O pedido vai para a TI, que aprova ou recusa. Você vê a resposta aqui.</p>
+      <div class="campo"><label for="sc-qtd">Quantos disparos você precisa?</label><input class="entrada" id="sc-qtd" type="number" min="1" max="1000" value="1"></div>
+      <div class="campo"><label for="sc-motivo">Para que são os disparos?</label><textarea class="entrada" id="sc-motivo" rows="3" maxlength="500" placeholder="ex.: avisos mensais da secretaria para os servidores"></textarea></div></div>`,
+    preConfirm: () => {
+      const quantidade = Number($('#sc-qtd').value), motivo = $('#sc-motivo').value.trim();
+      if (!quantidade || quantidade < 1 || quantidade > 1000) return Swal.showValidationMessage('Informe uma quantidade entre 1 e 1000.');
+      if (motivo.length < 3) return Swal.showValidationMessage('Conte para que são os disparos.');
+      return { quantidade, motivo };
+    } });
+  if (!r.isConfirmed) return;
+  try { await chamar('/api/email/creditos/pedidos', { method: 'POST', body: JSON.stringify(r.value) }); toast('Pedido enviado para a TI.'); atualizarCreditos(); }
+  catch (e) { erro(e); }
+}
+async function cancelarPedido(id) {
+  const r = await Swal.fire({ icon: 'question', title: 'Cancelar o pedido de créditos?', showCancelButton: true, confirmButtonText: 'Cancelar pedido', cancelButtonText: 'Voltar', customClass: { confirmButton: 'perigo' } });
+  if (!r.isConfirmed) return;
+  try { await chamar(`/api/email/creditos/pedidos/${id}/cancelar`, { method: 'POST' }); toast('Pedido cancelado.'); atualizarCreditos(); }
+  catch (e) { erro(e); }
+}
+async function verExtrato() {
+  try {
+    const c = await chamar('/api/email/creditos/meu');
+    const linhas = c.movimentos.map(m => `<tr><td>${dataHora(m.em)}</td><td>${esc(m.tipo_nome)}</td><td class="${m.quantidade > 0 ? 'mais' : 'menos'}">${m.quantidade > 0 ? '+' : ''}${m.quantidade}</td><td>${m.saldo_depois}</td><td class="quebra">${esc(m.motivo || '')}</td></tr>`).join('')
+      || '<tr><td colspan="5" style="text-align:center;color:var(--suave);padding:18px">Nenhum movimento ainda.</td></tr>';
+    const pedidos = c.pedidos.map(p => `<tr><td>${dataHora(p.criado_em)}</td><td>${txtCreditos(p.quantidade)}</td><td><span class="tag ${p.status}">${esc(p.status_nome)}</span></td><td class="quebra">${esc(p.resposta || '')}</td></tr>`).join('');
+    Swal.fire({ title: 'Seus créditos', width: 820, confirmButtonText: 'Fechar',
+      html: `<div class="pilha" style="text-align:left"><p style="margin:0">Saldo atual: <b>${c.ilimitado ? 'sem limite' : txtCreditos(c.saldo)}</b></p>
+        <div class="tabela-caixa" style="max-height:260px"><table class="tabela extrato"><tr><th>Quando</th><th>O quê</th><th>Qtd.</th><th>Saldo</th><th>Detalhe</th></tr>${linhas}</table></div>
+        ${pedidos ? `<b>Seus pedidos</b><div class="tabela-caixa" style="max-height:200px"><table class="tabela"><tr><th>Pedido em</th><th>Quantidade</th><th>Situação</th><th>Resposta da TI</th></tr>${pedidos}</table></div>` : ''}</div>` });
+  } catch (e) { erro(e); }
+}
+function semCredito(e) {
+  return Swal.fire({ icon: 'info', title: 'Sem créditos para disparar', text: e ? e.message : 'Cada disparo usa 1 crédito. Peça mais créditos à TI.',
+    showCancelButton: true, confirmButtonText: 'Solicitar créditos', cancelButtonText: 'Voltar' }).then(r => { if (r.isConfirmed) solicitarCreditos(); });
+}
 function lerMensagem() {
   const m = { titulo: $('#m-titulo').value.trim(), assunto: $('#m-assunto').value.trim(), corpo_html: corpoHtml().trim(),
     remetente_nome: $('#m-remetente').value.trim() || null, remetente_email: $('#m-remetente-email').value || null,
     responder_para: $('#m-responder').value.trim() || null };
-  if (!m.remetente_email) m.erro = 'A conta de envio dos e-mails não está configurada. Fale com a TI (Configurações).';
+  if (!m.remetente_email) m.erro = CFG.sem_email_motivo || 'A conta de envio dos e-mails não está configurada. Fale com a TI (Configurações).';
   else if (m.titulo.length < 3) m.erro = 'Dê um nome ao disparo (mínimo 3 letras), para achá-lo depois no histórico.';
   else if (!m.assunto) m.erro = 'Preencha o assunto.';
   else if (!editor.innerText.trim() && !/<img/i.test(m.corpo_html)) m.erro = 'Escreva a mensagem ou coloque uma imagem.';
@@ -384,7 +492,7 @@ const PARA_MAX_NA_TELA = 300;   // listas grandes: mostra ate 300 por vez (a bus
 function renderPara(id) {
   const el = $('#' + id), d = destinatarios();
   const estado = el._estado || (el._estado = { aberto: false, busca: '' });
-  const origem = ORIGEM === 'ad' ? 'usuários do AD selecionados' : `lista ${esc(LISTA_NOME || '')}`;
+  const origem = ORIGEM === 'ad' ? 'servidores selecionados' : `lista ${esc(LISTA_NOME || '')}`;
   el.innerHTML = `<div class="para-topo">
       <label>Para <span class="para-total">${numero(d.length)} destinatário${d.length === 1 ? '' : 's'}</span> <span class="para-origem">${origem}</span></label>
       <span class="para-acoes">
@@ -419,7 +527,7 @@ function renderPara(id) {
 function revisar() {
   const d = destinatarios(), m = lerMensagem(), b = blocosDe(d.length, tamanhoBloco()), manual = $('input[name=b-modo]:checked').value === 'manual';
   $('#r-resumo').innerHTML = `<div class="meta" style="font-size:14px;color:var(--tinta);gap:20px">
-    <span><b>${esc(m.titulo)}</b></span><span>Destinatários: <b>${numero(d.length)}</b> ${ORIGEM === 'ad' ? '(usuários do AD)' : `(lista ${esc(LISTA_NOME)})`}</span>
+    <span><b>${esc(m.titulo)}</b></span><span>Destinatários: <b>${numero(d.length)}</b> ${ORIGEM === 'ad' ? '(servidores da Prefeitura)' : `(lista ${esc(LISTA_NOME)})`}</span>
     <span>Blocos: <b>${b.length}</b> de até ${numero(tamanhoBloco())}</span><span>${manual ? 'Liberação <b>manual</b> de cada bloco' : `Automático, intervalo de <b>${Number($('#b-intervalo').value) || 0} min</b>`}</span>
     <span>Anexos: <b>${ANEXOS.length ? ANEXOS.map(a => esc(a.name)).join(', ') : 'nenhum'}</b></span></div>
     <div class="meta" style="font-size:14px;color:var(--tinta)"><span>Assunto: <b>${esc(trocar(m.assunto, d[0]))}</b></span><span>De: ${esc(m.remetente_nome || CFG.remetente_nome)} &lt;${esc(m.remetente_email || CFG.remetente || 'não configurado')}&gt;</span></div>`;
@@ -443,7 +551,7 @@ const trocarHtml = (t, p) => t.replaceAll('{nome}', esc(nomeDe(p))).replaceAll('
 function validarEtapa(n) {
   if (n === 1) {
     const t = destinatarios().length;
-    if (!t) return ORIGEM === 'ad' ? 'Selecione pelo menos um usuário.' : 'Envie o arquivo TXT com os e-mails.';
+    if (!t) return ORIGEM === 'ad' ? 'Selecione pelo menos uma pessoa.' : 'Envie o arquivo TXT com os e-mails.';
     if (t > CFG.max_emails) return `O máximo por disparo é ${numero(CFG.max_emails)} e-mails.`;
   }
   if (n === 2) { const m = lerMensagem(); if (m.erro) return m.erro; }
@@ -468,9 +576,17 @@ $('#btn-avancar').onclick = () => { const e = validarEtapa(etapa); if (e) return
 $('#btn-enviar').onclick = async () => {
   for (const n of [1, 2, 3]) { const e = validarEtapa(n); if (e) { irEtapa(n); return Swal.fire({ icon: 'warning', title: e }); } }
   const d = destinatarios(), m = lerMensagem(), b = blocosDe(d.length, tamanhoBloco());
+  const cred = CFG.creditos || { saldo: 0 };
+  if (!cred.ilimitado && cred.saldo < 1) return semCredito();
+  const textoCredito = cred.ilimitado ? '' : `<br>Este disparo usa <b>1 crédito</b> (você tem ${txtCreditos(cred.saldo)}; ficam ${txtCreditos(cred.saldo - 1)}).`;
   const r = await Swal.fire({ icon: 'question', title: 'Iniciar o disparo?', confirmButtonText: 'Iniciar disparo', cancelButtonText: 'Voltar', showCancelButton: true,
-    html: `<b>${numero(d.length)}</b> e-mails em <b>${b.length}</b> bloco(s).<br>Depois de iniciado, dá para pausar ou cancelar, mas os e-mails já enviados não voltam.` });
+    html: `<b>${numero(d.length)}</b> e-mails em <b>${b.length}</b> bloco(s), enviados por <b>${esc(m.remetente_email)}</b>.${textoCredito}<br>Depois de iniciado, dá para pausar ou cancelar, mas os e-mails já enviados não voltam.`
+      + (CFG.precisa_senha ? '<p class="ajuda" style="margin:12px 0 0">Digite a sua senha da rede para enviar pelo seu e-mail. Ela fica guardada com criptografia só até o disparo terminar.</p>'
+        : CFG.conta_propria ? '<p class="ajuda" style="margin:12px 0 0">O envio usa o seu login e a sua senha da rede, os mesmos com que você entrou na Gestão TI.</p>' : ''),
+    ...(CFG.precisa_senha ? { input: 'password', inputPlaceholder: 'sua senha da rede', inputValue: SENHA || '', inputAttributes: { autocomplete: 'current-password' },
+      inputValidator: v => !v ? 'Digite a sua senha.' : undefined } : {}) });
   if (!r.isConfirmed) return;
+  if (CFG.precisa_senha) SENHA = r.value;
   const botao = $('#btn-enviar'); botao.disabled = true;
   let criado = null;
   try {
@@ -484,14 +600,40 @@ $('#btn-enviar').onclick = async () => {
       const resp = await fetch(`/api/email/disparos/${criado.id}/anexos`, { method: 'POST', body: fd, credentials: 'same-origin' });
       if (!resp.ok) throw new Error((await resp.json().catch(() => ({}))).detail || `Falha ao anexar ${f.name}`);
     }
-    await chamar(`/api/email/disparos/${criado.id}/iniciar`, { method: 'POST' });
+    await iniciarComSenha(criado.id);
     Swal.close(); toast(`Disparo nº ${criado.id} iniciado.`);
-    limparFormulario(); trocarAba('disparos');
+    limparFormulario(); trocarAba('disparos'); atualizarCreditos();
   } catch (e) {
     Swal.close();
-    erro(new Error(e.message + (criado ? ` O disparo nº ${criado.id} ficou como rascunho na lista; você pode excluí-lo e tentar de novo.` : '')));
+    if (e.cancelado) { toast(`O disparo nº ${criado.id} ficou como rascunho na lista.`, 'info'); trocarAba('disparos'); }
+    else if (e.status === 402) { semCredito(e); atualizarCreditos(); }
+    else erro(new Error(e.message + (criado ? ` O disparo nº ${criado.id} ficou como rascunho na lista; você pode excluí-lo e tentar de novo.` : '')));
   } finally { botao.disabled = false; }
 };
+// Inicia (ou retoma / libera o proximo bloco) mandando a senha; se o servidor de e-mail recusar, pede de novo
+async function iniciarComSenha(id, op = 'iniciar') {
+  // Ao iniciar, manda a senha digitada na confirmacao. Ao retomar/liberar bloco, so manda se o servidor pedir (428):
+  // normalmente a senha ja esta guardada no disparo.
+  let mandarSenha = op === 'iniciar' && CFG.precisa_senha;
+  for (let tentativa = 0; tentativa < 4; tentativa++) {
+    try {
+      Swal.fire({ title: tentativa ? 'Conferindo a senha…' : 'Aguarde…', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+      const r = await chamar(`/api/email/disparos/${id}/${op}`, { method: 'POST', body: JSON.stringify(mandarSenha ? { senha: SENHA } : {}) });
+      if (mandarSenha) CFG.precisa_senha = false;   // a senha digitada passou a valer na sessao
+      return r;
+    } catch (e) {
+      Swal.close();
+      const precisa = e.status === 428, recusada = senhaRecusada(e);
+      if (!precisa && !recusada) throw e;
+      if (recusada) SENHA = null;
+      const s = await pedirSenha(recusada ? 'Senha recusada. Digite de novo' : null);
+      if (s === null) { const c = new Error('cancelado'); c.cancelado = true; throw c; }
+      SENHA = s;
+      mandarSenha = true;
+    }
+  }
+  throw new Error('A senha foi recusada várias vezes. Confira a sua senha da rede e tente de novo.');
+}
 function limparFormulario() {
   SEL.clear(); LISTA = null; LISTA_NOME = ''; ANEXOS = []; renderAnexos();
   ['#m-titulo', '#m-assunto', '#m-responder', '#b-tamanho'].forEach(s => $(s).value = '');
@@ -502,6 +644,7 @@ function limparFormulario() {
 // ---------------------------------------------------------------- lista e acompanhamento dos disparos
 async function carregarDisparos(silencioso = false) {
   try {
+    atualizarCreditos();
     const lista = (await chamar('/api/email/disparos')).filter(d => d.origem === ORIGEM);
     const el = $('#painel-disparos');
     if (!lista.length) { el.innerHTML = '<div class="vazio">Nenhum disparo ainda. Clique em <b>Novo disparo</b> para começar.</div>'; return; }
@@ -519,12 +662,13 @@ function cartaoDisparo(d) {
   acoes.push(`<button class="btn peq" data-op="duplicar" data-id="${d.id}">Duplicar</button>`, `<a class="btn peq" href="/api/email/disparos/${d.id}/relatorio.csv">Relatório CSV</a>`);
   const proximo = d.status === 'enviando' && d.proximo_bloco_em && new Date(d.proximo_bloco_em) > new Date() ? `<span>Próximo bloco às ${dataHora(d.proximo_bloco_em)}</span>` : '';
   return `<article class="item clicavel" data-detalhe="${d.id}">
-    <div class="topo-item"><b>${esc(d.titulo)}</b><span class="tag ${d.status}">${esc(d.status_nome)}</span><span class="tag">nº ${d.id}</span>${d.lista_nome ? `<span class="tag">${esc(d.lista_nome)}</span>` : ''}</div>
-    <div class="meta"><span>Assunto: ${esc(d.assunto)}</span><span>Por ${esc(d.criado_por)} em ${dataHora(d.criado_em)}</span></div>
+    <div class="topo-item"><b>${esc(d.titulo)}</b><span class="tag ${d.status}">${esc(d.status_nome)}</span><span class="tag">nº ${d.id}</span>${d.lista_nome ? `<span class="tag">${esc(d.lista_nome)}</span>` : ''}
+      ${d.credito_devolvido ? '<span class="tag credito" title="Nenhum e-mail saiu: o crédito voltou para o saldo">crédito devolvido</span>' : d.credito_usado ? '<span class="tag credito">1 crédito</span>' : ''}</div>
+    <div class="meta"><span>Assunto: ${esc(d.assunto)}</span><span>Por ${esc(d.criado_por)} em ${dataHora(d.criado_em)}</span><span>De: ${esc(d.remetente_email || '')}</span></div>
     <div class="barra-progresso" title="${numero(d.enviados)} enviados, ${numero(d.falhas)} falhas"><i style="width:${pct(d.enviados)}%"></i><i class="falha" style="width:${pct(d.falhas)}%"></i></div>
     <div class="meta"><span><b>${numero(d.enviados)}</b> de ${numero(d.total)} enviados</span>${d.falhas ? `<span style="color:var(--ruim)"><b>${numero(d.falhas)}</b> falhas</span>` : ''}
       <span>${d.total_blocos} bloco(s) de até ${numero(d.tamanho_bloco)} · ${d.modo === 'manual' ? 'liberação manual' : `automático, intervalo ${d.intervalo_minutos} min`}</span>${proximo}</div>
-    ${d.ultimo_erro ? `<div class="aviso-caixa">${esc(d.ultimo_erro)}</div>` : ''}
+    ${d.ultimo_erro ? `<div class="aviso-caixa">${esc(d.ultimo_erro)}</div>` : d.precisa_senha ? '<div class="aviso-caixa">Para continuar, clique em Retomar e informe a sua senha da rede.</div>' : ''}
     <div class="acoes">${acoes.join('')}</div></article>`;
 }
 $('#painel-disparos').addEventListener('click', async ev => {
@@ -545,9 +689,10 @@ async function acaoDisparo(op, id) {
       customClass: ['cancelar', 'excluir'].includes(op) ? { confirmButton: 'perigo' } : {} });
     if (!r.isConfirmed) return;
     if (op === 'excluir') await chamar(`/api/email/disparos/${id}`, { method: 'DELETE' });
+    else if (op === 'retomar' || op === 'proximo-bloco') { await iniciarComSenha(id, op); Swal.close(); }
     else await chamar(`/api/email/disparos/${id}/${op}`, { method: 'POST' });
-    toast('Feito.'); carregarDisparos();
-  } catch (e) { erro(e); }
+    toast('Feito.'); carregarDisparos(); if (op === 'cancelar') atualizarCreditos();
+  } catch (e) { if (!e.cancelado) erro(e); }
 }
 async function detalheDisparo(id) {
   try {

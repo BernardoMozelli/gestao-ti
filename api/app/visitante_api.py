@@ -65,7 +65,8 @@ class TrocarSenha(BaseModel):
 
 
 @router.post("/visitantes/{id_}/trocar-senha")
-def trocar_senha(id_: int, dados: TrocarSenha, request: Request, admin: Administrador = VisitanteDep) -> dict:
+def trocar_senha(id_: int, dados: TrocarSenha, request: Request, admin: Administrador = VisitanteDep,
+                 sessao: str | None = auth.SessaoCookie) -> dict:
     senha = gerar_senha() if dados.gerar else (dados.senha or "").strip()
     if len(senha) < 6:
         raise HTTPException(422, "A senha precisa ter pelo menos 6 caracteres.")
@@ -79,7 +80,7 @@ def trocar_senha(id_: int, dados: TrocarSenha, request: Request, admin: Administ
     v = r["visitante"]
     enviado = None
     if dados.enviar_email:
-        enviado = _enviar_por_email(v, senha)
+        enviado = _enviar_por_email(v, senha, admin, auth.senha_da_sessao(sessao))
     auditoria.registrar("visitante_senha_trocada", admin.usuario,
                         f"{v['nome']} (login {radius.mascarar_cpf(v['username']) if len(v['username'] or '') == 11 else v['username']}) · "
                         f"senha {'gerada pelo sistema' if dados.gerar else 'digitada pela TI'} · formato {', '.join(r['formatos'])}"
@@ -90,28 +91,38 @@ def trocar_senha(id_: int, dados: TrocarSenha, request: Request, admin: Administ
             "email": v["email"] if enviado else None}
 
 
-def _enviar_por_email(v: dict, senha: str):
-    """Manda a senha nova para o e-mail do cadastro, pela conta geral@. Devolve True ou a mensagem de erro."""
+def _enviar_por_email(v: dict, senha: str, admin: Administrador, senha_email: str | None):
+    """Manda a senha nova para o e-mail do cadastro, pela conta de e-mail de quem esta logado (ou pela conta de
+    teste, com o modo de teste ligado). Devolve True ou a mensagem de erro."""
+    import smtplib
     from email.message import EmailMessage
     from email.utils import formataddr
 
     from . import ajustes
-    from .email_lote import EMAIL_RE, abrir_smtp, smtp_configurado
+    from .email_lote import EMAIL_RE, abrir_smtp, conta_para_envio, smtp_configurado
     if not (v.get("email") and EMAIL_RE.fullmatch(v["email"].strip())):
         return "o cadastro não tem um e-mail válido"
     if not smtp_configurado():
         return "o servidor de e-mail não está configurado"
+    try:
+        cfg, remetente = conta_para_envio(admin, senha_email)
+    except HTTPException as erro:
+        if erro.status_code == 428:
+            return "a sua sessão não tem a senha do e-mail. Saia e entre de novo na Gestão TI com o seu usuário do AD"
+        return str(erro.detail)
     msg = EmailMessage()
     msg["Subject"] = "Sua nova senha do Wi-Fi da Prefeitura de Santa Luzia"
-    msg["From"] = formataddr((ajustes.obter("SMTP_FROM_NOME"), ajustes.obter("SMTP_FROM")))
+    msg["From"] = formataddr((ajustes.obter("SMTP_FROM_NOME"), remetente))
     msg["To"] = v["email"].strip()
     login = v.get("username") or v.get("cpf")
     msg.set_content(f"Olá, {v['nome'].split()[0]}!\n\nSua senha do Wi-Fi para visitantes foi alterada.\n\n"
                     f"Usuário: {login}\nNova senha: {senha}\n\nSe você não pediu esta troca, procure a recepção.\n")
     try:
-        with abrir_smtp(timeout=10) as smtp:
+        with abrir_smtp(cfg, timeout=10) as smtp:
             smtp.send_message(msg)
         return True
+    except smtplib.SMTPAuthenticationError:
+        return "o servidor de e-mail recusou a sua senha. Se trocou a senha da rede, saia e entre de novo na Gestão TI"
     except Exception as erro:  # noqa: BLE001
         return f"falha no envio: {erro}"
 

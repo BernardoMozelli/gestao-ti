@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Créditos de e-mail · Gestão TI</title>
+<link rel="stylesheet" href="/static/estilo.css">
+<script src="/static/sweetalert2.all.min.js"></script>
+<script src="/static/comum.js"></script>
+</head>
+<body>
+<section id="tela-app" class="oculto">
+  <header id="topo"></header>
+  <main class="conteudo">
+    <p class="ajuda" style="margin:0 0 14px;color:var(--suave)">Cada disparo de e-mail usa 1 crédito de quem o cria. Aqui você aprova ou recusa os pedidos e libera créditos
+      para qualquer pessoa, sem precisar de pedido. Quem tem este módulo envia sem limite.</p>
+    <div class="barra">
+      <nav class="abas" id="abas">
+        <button class="aba" data-aba="pedidos">Pedidos <span class="tag pendente oculto" id="n-pendentes"></span></button>
+        <button class="aba" data-aba="usuarios">Usuários e saldos</button>
+        <button class="aba" data-aba="extrato">Extrato</button>
+      </nav>
+    </div>
+
+    <!-- pedidos -->
+    <div id="painel-pedidos" class="oculto">
+      <div class="filtros" style="margin:0 0 12px">
+        <select class="entrada" id="p-status" style="max-width:320px">
+          <option value="pendente">Aguardando resposta</option><option value="aprovado">Aprovados</option>
+          <option value="recusado">Recusados</option><option value="todos">Todos</option>
+        </select>
+      </div>
+      <div class="lista" id="pedidos"></div>
+    </div>
+
+    <!-- usuarios -->
+    <div id="painel-usuarios" class="oculto">
+      <div class="filtros" style="margin:0 0 12px">
+        <input class="entrada" id="u-busca" placeholder="Buscar por nome, login ou e-mail" autocomplete="off">
+        <select class="entrada" id="u-filtro" style="max-width:240px">
+          <option value="">Todos</option><option value="zerado">Sem créditos</option><option value="com">Com créditos</option>
+          <option value="pedido">Com pedido aguardando</option><option value="ilimitado">Sem limite</option>
+        </select>
+      </div>
+      <p class="ajuda" style="margin:0 0 10px;color:var(--suave)">Aparecem todas as pessoas que já entraram na Gestão TI (os e-mails são liberados para todos) e quem já recebeu créditos.</p>
+      <div class="tabela-caixa"><table class="tabela"><thead><tr><th>Nome</th><th>E-mail</th><th>Saldo</th><th>Disparos</th><th>Último disparo</th><th style="width:1%">Ações</th></tr></thead>
+        <tbody id="usuarios"></tbody></table></div>
+    </div>
+
+    <!-- extrato -->
+    <div id="painel-extrato" class="oculto">
+      <div class="filtros" style="margin:0 0 12px">
+        <select class="entrada" id="e-usuario" style="max-width:360px"><option value="">Todas as pessoas</option></select>
+      </div>
+      <div class="tabela-caixa"><table class="tabela"><thead><tr><th>Quando</th><th>Pessoa</th><th>O quê</th><th>Qtd.</th><th>Saldo depois</th><th>Por</th><th>Detalhe</th></tr></thead>
+        <tbody id="extrato"></tbody></table></div>
+    </div>
+  </main>
+</section>
+
+<script>
+const chamar = (c, o) => api(c, o, irParaInicio);
+const txtCreditos = n => `${numero(n)} crédito${Number(n) === 1 ? '' : 's'}`;
+let aba = 'pedidos', USUARIOS = [], timer = null;
+
+async function abrir() {
+  if (!await exigirSessao('creditos_email')) return;
+  montarTopo('Créditos de e-mail', 'moeda');
+  $('#tela-app').classList.remove('oculto');
+  const pedida = new URLSearchParams(location.search).get('aba');
+  trocarAba(['pedidos', 'usuarios', 'extrato'].includes(pedida) ? pedida : 'pedidos');
+  timer = setInterval(() => { if (!document.hidden && !Swal.isVisible()) { contarPendentes(); if (aba === 'pedidos') carregarPedidos(true); } }, 15000);
+}
+$('#abas').addEventListener('click', ev => { const b = ev.target.closest('.aba'); if (b) trocarAba(b.dataset.aba); });
+function trocarAba(nova) {
+  aba = nova;
+  document.querySelectorAll('.aba').forEach(x => x.classList.toggle('ativa', x.dataset.aba === aba));
+  ['pedidos', 'usuarios', 'extrato'].forEach(p => $('#painel-' + p).classList.toggle('oculto', p !== aba));
+  contarPendentes();
+  if (aba === 'pedidos') carregarPedidos();
+  if (aba === 'usuarios') carregarUsuarios();
+  if (aba === 'extrato') carregarExtrato();
+}
+async function contarPendentes() {
+  try {
+    const r = await chamar('/api/email/creditos/resumo');
+    $('#n-pendentes').textContent = r.pendentes; $('#n-pendentes').classList.toggle('oculto', !r.pendentes);
+  } catch { /* silencioso */ }
+}
+
+// ---------------------------------------------------------------- pedidos
+$('#p-status').onchange = () => carregarPedidos();
+async function carregarPedidos(silencioso = false) {
+  try {
+    const lista = await chamar('/api/email/creditos/pedidos?status=' + $('#p-status').value);
+    $('#pedidos').innerHTML = lista.map(p => `<article class="item">
+        <div class="topo-item"><b>${esc(p.nome || p.usuario)}</b><span class="tag">${esc(p.usuario)}</span><span class="tag ${p.status}">${esc(p.status_nome)}</span><span class="tag">nº ${p.id}</span></div>
+        <div class="meta"><span>Pediu <b>${txtCreditos(p.quantidade)}</b> em ${dataHora(p.criado_em)}</span><span>Saldo atual: <b>${txtCreditos(p.saldo_atual)}</b></span>
+          ${p.decidido_em ? `<span>${p.status === 'aprovado' ? `Liberou ${txtCreditos(p.quantidade_aprovada)}` : p.status === 'cancelado' ? 'Cancelado' : 'Recusado'} por ${esc(p.decidido_por)} em ${dataHora(p.decidido_em)}</span>` : ''}</div>
+        <div class="quebra" style="font-size:14px">Motivo: ${esc(p.motivo)}</div>
+        ${p.resposta ? `<div class="quebra" style="font-size:14px;color:var(--suave)">Resposta: ${esc(p.resposta)}</div>` : ''}
+        ${p.status === 'pendente' ? `<div class="acoes"><button class="btn peq primario" data-op="aprovar" data-id="${p.id}">Aprovar</button>
+          <button class="btn peq contorno-perigo" data-op="recusar" data-id="${p.id}">Recusar</button></div>` : ''}</article>`).join('')
+      || `<div class="vazio">${$('#p-status').value === 'pendente' ? 'Nenhum pedido aguardando resposta.' : 'Nenhum pedido aqui.'}</div>`;
+    $('#pedidos')._lista = lista;
+  } catch (e) { if (!silencioso) erro(e); }
+}
+$('#pedidos').addEventListener('click', async ev => {
+  const b = ev.target.closest('button[data-op]'); if (!b) return;
+  const p = ($('#pedidos')._lista || []).find(x => x.id === Number(b.dataset.id)); if (!p) return;
+  const aprovar = b.dataset.op === 'aprovar';
+  const r = await Swal.fire({ title: aprovar ? 'Aprovar o pedido' : 'Recusar o pedido', showCancelButton: true, focusConfirm: false,
+    confirmButtonText: aprovar ? 'Liberar créditos' : 'Recusar', cancelButtonText: 'Voltar', customClass: aprovar ? {} : { confirmButton: 'perigo' },
+    html: `<div class="pilha" style="text-align:left">
+      <p style="margin:0"><b>${esc(p.nome || p.usuario)}</b> pediu <b>${txtCreditos(p.quantidade)}</b> (tem ${txtCreditos(p.saldo_atual)}).</p>
+      <p class="ajuda quebra" style="margin:0">Motivo: ${esc(p.motivo)}</p>
+      ${aprovar ? `<div class="campo"><label for="d-qtd">Quantos créditos liberar</label><input class="entrada" id="d-qtd" type="number" min="1" max="1000" value="${p.quantidade}"></div>` : ''}
+      <div class="campo"><label for="d-resp">Resposta para a pessoa (opcional)</label><textarea class="entrada" id="d-resp" rows="2" maxlength="500"></textarea></div></div>`,
+    preConfirm: () => {
+      const quantidade = aprovar ? Number($('#d-qtd').value) : null;
+      if (aprovar && (!quantidade || quantidade < 1 || quantidade > 1000)) return Swal.showValidationMessage('Informe uma quantidade entre 1 e 1000.');
+      return { quantidade, resposta: $('#d-resp').value.trim() };
+    } });
+  if (!r.isConfirmed) return;
+  try {
+    await chamar(`/api/email/creditos/pedidos/${p.id}/${aprovar ? 'aprovar' : 'recusar'}`, { method: 'POST', body: JSON.stringify(r.value) });
+    toast(aprovar ? `${txtCreditos(r.value.quantidade)} liberado(s) para ${p.nome || p.usuario}.` : 'Pedido recusado.');
+    carregarPedidos(); contarPendentes();
+  } catch (e) { erro(e); }
+});
+
+// ---------------------------------------------------------------- usuarios e saldos
+async function carregarUsuarios() {
+  try { USUARIOS = await chamar('/api/email/creditos/usuarios'); filtrarUsuarios(); }
+  catch (e) { erro(e); }
+}
+$('#u-busca').addEventListener('input', () => filtrarUsuarios());
+$('#u-filtro').addEventListener('change', () => filtrarUsuarios());
+function filtrarUsuarios() {
+  const q = $('#u-busca').value.trim().toLowerCase(), f = $('#u-filtro').value;
+  const lista = USUARIOS.filter(u => (!q || `${u.nome} ${u.usuario} ${u.email || ''}`.toLowerCase().includes(q))
+    && (!f || (f === 'zerado' && !u.ilimitado && !u.saldo) || (f === 'com' && !u.ilimitado && u.saldo > 0) || (f === 'pedido' && u.pedido_pendente) || (f === 'ilimitado' && u.ilimitado)));
+  $('#usuarios').innerHTML = lista.map(u => `<tr>
+      <td>${esc(u.nome)}${u.ativo ? '' : ' <span class="tag negada">desativado</span>'}${u.pedido_pendente ? ' <span class="tag pendente">pedido aguardando</span>' : ''}
+        <small style="display:block;color:var(--suave)">${esc(u.usuario)}</small></td>
+      <td>${u.email ? esc(u.email) : '<span style="color:var(--ruim)">sem e-mail no AD</span>'}</td>
+      <td>${u.ilimitado ? '<span class="tag indigo">sem limite</span>' : `<span class="saldo-num ${u.saldo ? '' : 'zero'}">${numero(u.saldo || 0)}</span>`}</td>
+      <td>${numero(u.disparos)}</td><td>${u.ultimo_disparo ? dataHora(u.ultimo_disparo) : '—'}</td>
+      <td><div class="acoes-saldo">${u.ilimitado ? '' : `<button class="btn peq indigo" data-op="dar" data-u="${esc(u.usuario)}">Liberar</button>
+        <button class="btn peq contorno-perigo" data-op="tirar" data-u="${esc(u.usuario)}" ${u.saldo ? '' : 'disabled title="Sem créditos para remover"'}>Remover</button>`}
+        <button class="btn peq" data-op="extrato" data-u="${esc(u.usuario)}">Extrato</button></div></td></tr>`).join('')
+    || '<tr><td colspan="6" style="text-align:center;color:var(--suave);padding:24px">Ninguém encontrado.</td></tr>';
+}
+$('#usuarios').addEventListener('click', async ev => {
+  const b = ev.target.closest('button[data-op]'); if (!b) return;
+  const u = USUARIOS.find(x => x.usuario === b.dataset.u); if (!u) return;
+  if (b.dataset.op === 'extrato') { trocarAba('extrato'); $('#e-usuario').value = u.usuario; return carregarExtrato(); }
+  const dar = b.dataset.op === 'dar';
+  const r = await Swal.fire({ title: dar ? 'Liberar créditos' : 'Remover créditos', showCancelButton: true, focusConfirm: false,
+    confirmButtonText: dar ? 'Liberar' : 'Remover', cancelButtonText: 'Voltar', customClass: dar ? {} : { confirmButton: 'perigo' },
+    html: `<div class="pilha" style="text-align:left">
+      <p style="margin:0"><b>${esc(u.nome)}</b> (${esc(u.usuario)}) tem <b>${txtCreditos(u.saldo || 0)}</b>.</p>
+      <div class="campo"><label for="c-qtd">${dar ? 'Quantos créditos liberar' : 'Quantos créditos remover'}</label>
+        <input class="entrada" id="c-qtd" type="number" min="1" max="${dar ? 1000 : (u.saldo || 0)}" value="${dar ? 5 : 1}"></div>
+      <div class="campo"><label for="c-motivo">Motivo (opcional, aparece no extrato da pessoa)</label><input class="entrada" id="c-motivo" maxlength="500"></div></div>`,
+    preConfirm: () => {
+      const q = Number($('#c-qtd').value);
+      if (!q || q < 1) return Swal.showValidationMessage('Informe a quantidade.');
+      if (!dar && q > (u.saldo || 0)) return Swal.showValidationMessage(`A pessoa só tem ${txtCreditos(u.saldo || 0)}.`);
+      return { usuario: u.usuario, quantidade: dar ? q : -q, motivo: $('#c-motivo').value.trim() };
+    } });
+  if (!r.isConfirmed) return;
+  try {
+    const res = await chamar('/api/email/creditos/conceder', { method: 'POST', body: JSON.stringify(r.value) });
+    toast(`${u.nome}: saldo agora ${txtCreditos(res.saldo)}.`); carregarUsuarios();
+  } catch (e) { erro(e); }
+});
+
+// ---------------------------------------------------------------- extrato
+$('#e-usuario').onchange = () => carregarExtrato();
+async function carregarExtrato() {
+  try {
+    if (!USUARIOS.length) USUARIOS = await chamar('/api/email/creditos/usuarios');
+    const atual = $('#e-usuario').value;
+    $('#e-usuario').innerHTML = '<option value="">Todas as pessoas</option>' + USUARIOS.map(u => `<option value="${esc(u.usuario)}">${esc(u.nome)} (${esc(u.usuario)})</option>`).join('');
+    $('#e-usuario').value = atual;
+    const lista = await chamar('/api/email/creditos/movimentos' + (atual ? '?usuario=' + encodeURIComponent(atual) : ''));
+    $('#extrato').innerHTML = lista.map(m => `<tr><td>${dataHora(m.em)}</td><td>${esc(m.nome || m.usuario)}</td><td>${esc(m.tipo_nome)}</td>
+        <td class="${m.quantidade > 0 ? 'mais' : 'menos'}">${m.quantidade > 0 ? '+' : ''}${m.quantidade}</td><td>${m.saldo_depois}</td><td>${esc(m.por)}</td><td class="quebra">${esc(m.motivo || '')}</td></tr>`).join('')
+      || '<tr><td colspan="7" style="text-align:center;color:var(--suave);padding:24px">Nenhum movimento ainda.</td></tr>';
+  } catch (e) { erro(e); }
+}
+
+carregarMarca().then(abrir);
+</script>
+</body>
+</html>

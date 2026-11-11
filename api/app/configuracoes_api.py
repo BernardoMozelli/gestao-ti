@@ -1,12 +1,14 @@
 """Modulo Configuracoes: servidor de e-mail (SMTP), limites dos disparos e banco do Wi-Fi Visitante (RADIUS)."""
+import smtplib
 from email.utils import formataddr
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, Response
 from pydantic import BaseModel, Field
 
 from . import ajustes, auditoria, auth, config, radius
 from .db import Administrador, Evento, SessionLocal
-from .email_lote import EMAIL_RE, abrir_smtp, montar_mensagem
+from .email_lote import (EMAIL_RE, MSG_PRECISA_SENHA, MSG_SENHA_RECUSADA, abrir_smtp, email_do_usuario, login_smtp,
+                         montar_mensagem)
 
 router = APIRouter(prefix="/api/configuracoes")
 ConfigDep = auth.exigir_modulo("configuracoes")
@@ -15,7 +17,9 @@ ROTULOS = {"SMTP_HOST": "servidor", "SMTP_PORT": "porta", "SMTP_SEGURANCA": "seg
            "SMTP_PASSWORD": "senha", "SMTP_FROM": "e-mail do remetente", "SMTP_FROM_NOME": "nome do remetente",
            "ENVIO_PAUSA_MS": "pausa entre e-mails", "ANEXOS_MAX_MB": "limite de anexos",
            "IMAGEM_MAX_MB": "limite por imagem", "LISTA_MAX_EMAILS": "máximo de e-mails por disparo",
-           "EMAIL_TESTE_ATIVO": "modo de teste do e-mail", "EMAIL_TESTE": "e-mail de teste"}
+           "EMAIL_TESTE_ATIVO": "modo de teste do e-mail", "EMAIL_TESTE": "e-mail de teste",
+           "SMTP_LOGIN_FORMATO": "login dos usuários no e-mail", "CREDITOS_INICIAIS": "créditos iniciais",
+           "EMAIL_PARA_TODOS": "módulos de e-mail liberados para todos"}
 
 
 class ConfigEmail(BaseModel):
@@ -32,6 +36,10 @@ class ConfigEmail(BaseModel):
     LISTA_MAX_EMAILS: int | None = Field(default=None, ge=1, le=500000)
     EMAIL_TESTE_ATIVO: str | None = None            # sim | nao
     EMAIL_TESTE: str | None = Field(default=None, max_length=200)
+    SMTP_LOGIN_FORMATO: str | None = None           # email | usuario | upn | dominio
+    CREDITOS_INICIAIS: int | None = Field(default=None, ge=0, le=1000)
+    EMAIL_PARA_TODOS: str | None = None             # sim | nao
+    senha_usuario: str | None = Field(default=None, max_length=500)   # so nos testes: senha da rede de quem testa
 
 
 def _validar(d: ConfigEmail) -> None:
@@ -41,6 +49,10 @@ def _validar(d: ConfigEmail) -> None:
         raise HTTPException(422, "O e-mail de teste é inválido.")
     if d.EMAIL_TESTE_ATIVO == "sim" and not (d.EMAIL_TESTE or ajustes.obter("EMAIL_TESTE")):
         raise HTTPException(422, "Informe o e-mail de teste para ligar o modo de teste.")
+    if d.EMAIL_PARA_TODOS is not None and d.EMAIL_PARA_TODOS not in ("sim", "nao"):
+        raise HTTPException(422, "Liberação dos módulos de e-mail: use sim ou não.")
+    if d.SMTP_LOGIN_FORMATO is not None and d.SMTP_LOGIN_FORMATO not in ("email", "usuario", "upn", "dominio"):
+        raise HTTPException(422, "Formato de login inválido.")
     if d.SMTP_SEGURANCA is not None and d.SMTP_SEGURANCA not in ("nenhuma", "starttls", "ssl"):
         raise HTTPException(422, "Segurança inválida. Use nenhuma, STARTTLS ou SSL.")
 
@@ -54,22 +66,29 @@ def _atual() -> dict:
     return dados
 
 
-def _mesclar(d: ConfigEmail) -> dict:
-    """Configuracao para testar: o que veio da tela por cima do que esta salvo (sem gravar)."""
-    c = {k: ajustes.obter(k) for k in ("SMTP_HOST", "SMTP_PORT", "SMTP_SEGURANCA", "SMTP_USER", "SMTP_PASSWORD", "SMTP_FROM")}
+def _mesclar(d: ConfigEmail, admin: Administrador, sessao: str | None) -> dict:
+    """Configuracao para testar, com o que esta na tela por cima do que esta salvo (sem gravar).
+    Modo de teste ligado: conta de teste. Desligado: a conta de quem esta testando (login e senha do AD)."""
+    c = {k: ajustes.obter(k) for k in ("SMTP_HOST", "SMTP_PORT", "SMTP_SEGURANCA", "SMTP_USER", "SMTP_PASSWORD")}
     for k in c:
-        if k == "SMTP_FROM":
-            continue   # conta de envio fixa (geral@)
         v = getattr(d, k)
         if v is not None and not (k == "SMTP_PASSWORD" and v == ""):
             c[k] = v.strip() if isinstance(v, str) else v
     if d.apagar_senha:
         c["SMTP_PASSWORD"] = ""
-    # Modo de teste como esta na tela (ainda sem salvar)
-    if d.EMAIL_TESTE_ATIVO == "sim" and (d.EMAIL_TESTE or "").strip():
-        c["SMTP_FROM"] = d.EMAIL_TESTE.strip().lower()
-    elif d.EMAIL_TESTE_ATIVO == "nao":
-        c["SMTP_FROM"] = config.CONTA_ENVIO
+    teste = (d.EMAIL_TESTE_ATIVO or ajustes.obter("EMAIL_TESTE_ATIVO")) == "sim"
+    if teste:
+        c["SMTP_FROM"] = (d.EMAIL_TESTE or ajustes.obter("EMAIL_TESTE") or "").strip().lower()
+        c["conta_propria"] = False
+        return c
+    remetente = email_do_usuario(admin)
+    if not remetente or admin.origem != "ad":
+        raise HTTPException(422, "Para testar sem o modo de teste, entre com um usuário do AD que tenha e-mail cadastrado. "
+                                 "Ou ligue o modo de teste.")
+    senha = d.senha_usuario or auth.senha_da_sessao(sessao)
+    if not senha:
+        raise HTTPException(428, MSG_PRECISA_SENHA)
+    c.update(SMTP_USER=login_smtp(admin), SMTP_PASSWORD=senha, SMTP_FROM=remetente, conta_propria=True)
     return c
 
 
@@ -81,7 +100,7 @@ def ver_email(admin: Administrador = ConfigDep) -> dict:
 @router.put("/email")
 def salvar_email(dados: ConfigEmail, request: Request, admin: Administrador = ConfigDep) -> dict:
     _validar(dados)
-    valores = dados.model_dump(exclude={"apagar_senha"})
+    valores = dados.model_dump(exclude={"apagar_senha", "senha_usuario"})
     if not valores.get("SMTP_PASSWORD"):
         valores["SMTP_PASSWORD"] = None          # nao mexe na senha guardada
     if dados.apagar_senha:
@@ -91,7 +110,7 @@ def salvar_email(dados: ConfigEmail, request: Request, admin: Administrador = Co
         ligado = ajustes.obter("EMAIL_TESTE_ATIVO") == "sim"
         auditoria.registrar("configuracao_alterada", admin.usuario,
                             f"Modo de teste do e-mail LIGADO: os envios saem de {ajustes.obter('SMTP_FROM')}" if ligado
-                            else f"Modo de teste do e-mail DESLIGADO: os envios voltam a sair de {config.CONTA_ENVIO}")
+                            else "Modo de teste do e-mail DESLIGADO: os envios voltam a sair da conta de cada usuário")
         mudou = [m for m in mudou if m not in ("EMAIL_TESTE_ATIVO", "EMAIL_TESTE")]
     if mudou:
         with SessionLocal() as s:
@@ -102,18 +121,25 @@ def salvar_email(dados: ConfigEmail, request: Request, admin: Administrador = Co
 
 
 @router.post("/email/testar")
-def testar_conexao(dados: ConfigEmail, admin: Administrador = ConfigDep) -> dict:
+def testar_conexao(dados: ConfigEmail, response: Response, admin: Administrador = ConfigDep,
+                   sessao: str | None = auth.SessaoCookie) -> dict:
     """Conecta e faz login no servidor de e-mail com os dados da tela, sem salvar e sem enviar nada."""
     _validar(dados)
-    cfg = _mesclar(dados)
+    cfg = _mesclar(dados, admin, sessao)
     try:
         with abrir_smtp(cfg, timeout=15) as smtp:
             smtp.noop()
+    except smtplib.SMTPAuthenticationError:
+        auditoria.registrar("configuracao_testada", admin.usuario, f"SMTP {cfg.get('SMTP_HOST')}:{cfg.get('SMTP_PORT')} · senha recusada ({cfg['SMTP_USER']})")
+        raise HTTPException(422, MSG_SENHA_RECUSADA if cfg["conta_propria"] else "O servidor de e-mail recusou o login da conta de teste.")
     except Exception as erro:  # noqa: BLE001 - devolve o motivo para a tela
         auditoria.registrar("configuracao_testada", admin.usuario, f"SMTP {cfg.get('SMTP_HOST')}:{cfg.get('SMTP_PORT')} · falhou: {erro}")
         raise HTTPException(502, f"Não conectou: {erro}")
-    auditoria.registrar("configuracao_testada", admin.usuario, f"SMTP {cfg.get('SMTP_HOST')}:{cfg.get('SMTP_PORT')} · conectou")
-    return {"ok": True}
+    auditoria.registrar("configuracao_testada", admin.usuario, f"SMTP {cfg.get('SMTP_HOST')}:{cfg.get('SMTP_PORT')} · conectou"
+                        + (f" com a conta {cfg['SMTP_USER']}" if cfg.get("SMTP_USER") else ""))
+    if dados.senha_usuario and cfg["conta_propria"]:
+        auth.trocar_senha_na_sessao(response, sessao, dados.senha_usuario)
+    return {"ok": True, "conta": cfg["SMTP_FROM"]}
 
 
 class TesteEnvio(ConfigEmail):
@@ -121,23 +147,29 @@ class TesteEnvio(ConfigEmail):
 
 
 @router.post("/email/enviar-teste")
-def enviar_teste(dados: TesteEnvio, request: Request, admin: Administrador = ConfigDep) -> dict:
+def enviar_teste(dados: TesteEnvio, request: Request, response: Response, admin: Administrador = ConfigDep,
+                 sessao: str | None = auth.SessaoCookie) -> dict:
     _validar(dados)
     para = dados.para.strip().lower()
     if not EMAIL_RE.fullmatch(para):
         raise HTTPException(422, "E-mail de destino inválido.")
-    cfg = _mesclar(dados)
+    cfg = _mesclar(dados, admin, sessao)
     msg = montar_mensagem("Teste do servidor de e-mail da Gestão TI",
                           "<p>Olá, {nome}!</p><p>Este é um e-mail de teste enviado pelo módulo <b>Configurações</b> "
                           "da Gestão TI. Se você recebeu, o servidor de e-mail está funcionando.</p>",
                           dados.SMTP_FROM_NOME, None, para, admin.nome, [])
     del msg["From"]
-    msg["From"] = formataddr((dados.SMTP_FROM_NOME or ajustes.obter("SMTP_FROM_NOME"), cfg["SMTP_FROM"]))
+    nome_remetente = admin.nome if cfg["conta_propria"] else (dados.SMTP_FROM_NOME or ajustes.obter("SMTP_FROM_NOME"))
+    msg["From"] = formataddr((nome_remetente, cfg["SMTP_FROM"]))
     try:
         with abrir_smtp(cfg) as smtp:
             smtp.send_message(msg)
+    except smtplib.SMTPAuthenticationError:
+        raise HTTPException(422, MSG_SENHA_RECUSADA if cfg["conta_propria"] else "O servidor de e-mail recusou o login da conta de teste.")
     except Exception as erro:  # noqa: BLE001
         raise HTTPException(502, f"O servidor recusou o envio: {erro}")
+    if dados.senha_usuario and cfg["conta_propria"]:
+        auth.trocar_senha_na_sessao(response, sessao, dados.senha_usuario)
     with SessionLocal() as s:
         s.add(Evento(acao="email_teste", autor=admin.usuario, ip=auth.ip_do_cliente(request),
                      detalhe=f"Teste do servidor de e-mail para {para}"))

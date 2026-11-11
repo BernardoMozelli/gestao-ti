@@ -82,6 +82,11 @@ async function abrir() {
     + emBreve.map(m => `<div class="modulo em-breve"><span class="tag selo">Em breve</span>
       <span class="ico">${icone(m.icone, 24)}</span><h3>${esc(m.nome)}</h3><p>${esc(m.descricao)}</p></div>`).join('');
   $('#aviso-acesso').classList.toggle('oculto', liberados.length > 0);
+  // Pedidos de creditos de e-mail aguardando resposta: contador no card
+  if (EU.modulos.includes('creditos_email')) api('/api/email/creditos/resumo').then(r => {
+    const card = document.querySelector('a.modulo[href="/m/creditos-email"]');
+    if (card && r.pendentes) card.insertAdjacentHTML('beforeend', `<span class="contador-pedidos" title="Pedidos aguardando resposta">${r.pendentes} pedido${r.pendentes === 1 ? '' : 's'}</span>`);
+  }).catch(() => {});
   $('#tela-login').classList.add('oculto');
   $('#tela-app').classList.remove('oculto');
 }

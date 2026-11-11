@@ -4,6 +4,13 @@ Duas origens de destinatarios, com permissoes separadas:
   - ad:    usuarios ativos do AD que tem e-mail (modulo email_ad, so TI)
   - lista: arquivo TXT enviado pelo usuario (modulo email_lista, pode ser liberado para fora da TI)
 
+Remetente: cada disparo sai do e-mail de quem o criou (o e-mail cadastrado no AD), autenticando no servidor de
+e-mail com o login e a senha do AD da pessoa. A senha vem do login na Gestao TI (criptografada no cookie da sessao);
+so e pedida na tela se o servidor de e-mail recusar ou se a sessao nao tiver a senha. Ao iniciar, e conferida no
+servidor de e-mail e guardada criptografada no disparo so enquanto ele esta em andamento (apagada ao concluir ou cancelar).
+Com o modo de teste ligado em Configuracoes, os disparos saem da conta de teste do sistema.
+Creditos: cada disparo iniciado gasta 1 credito de quem criou (modulo creditos.py).
+
 O envio e feito em blocos por uma thread em segundo plano. Cada destinatario fica gravado no banco
 com a situacao (pendente, enviado, erro), entao o envio continua de onde parou se o servidor reiniciar.
 Modo automatico: os blocos saem sozinhos com um intervalo. Modo manual: a pessoa libera bloco por bloco.
@@ -24,12 +31,12 @@ from email.message import EmailMessage
 from email.utils import formataddr, formatdate, make_msgid
 from pathlib import Path
 
-from fastapi import APIRouter, File, HTTPException, Request, UploadFile
+from fastapi import APIRouter, File, HTTPException, Request, Response, UploadFile
 from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import delete, func, or_, select, update
 
-from . import ad, ajustes, auditoria, auth, config
+from . import ad, ajustes, auditoria, auth, config, creditos
 from .db import (Administrador, Disparo, DisparoAnexo, DisparoDestinatario,
                  Evento, SessionLocal, agora)
 
@@ -252,14 +259,20 @@ def ler_lista(conteudo: bytes) -> dict:
 
 # =========================================================================== configuracao e origem AD
 @router.get("/config")
-def configuracao(admin: Administrador = EmailDep) -> dict:
+def configuracao(admin: Administrador = EmailDep, sessao: str | None = auth.SessaoCookie) -> dict:
     return {"smtp_configurado": smtp_configurado(), "remetente": ajustes.obter("SMTP_FROM"),
             "remetente_nome": ajustes.obter("SMTP_FROM_NOME"), "anexos_max_mb": ajustes.obter("ANEXOS_MAX_MB"),
             "imagem_max_mb": ajustes.obter("IMAGEM_MAX_MB"),
             "max_emails": ajustes.obter("LISTA_MAX_EMAILS"), "pausa_ms": ajustes.obter("ENVIO_PAUSA_MS"),
             "pode_configurar": "configuracoes" in admin.modulos,
             "pode_ad": "email_ad" in admin.modulos, "pode_lista": "email_lista" in admin.modulos,
-            "busca_ad": bool(config.AD_BIND_USUARIO and config.AD_BIND_SENHA)}
+            "busca_ad": bool(config.AD_BIND_USUARIO and config.AD_BIND_SENHA),
+            "conta_propria": usa_conta_propria(),
+            # A senha so e pedida na tela se a sessao nao tiver a do login (ou se o servidor de e-mail recusar)
+            "precisa_senha": usa_conta_propria() and not auth.senha_da_sessao(sessao),
+            "remetente_proprio": (remetentes_permitidos(admin) or [{}])[0].get("email"),
+            "sem_email_motivo": None if remetentes_permitidos(admin) else _sem_email(admin).detail,
+            "creditos": creditos.resumo_de(admin), "pode_gerir_creditos": creditos.ilimitado(admin)}
 
 
 _cache_ad: dict = {"dados": None, "em": 0.0}
@@ -321,9 +334,10 @@ def ver_imagem(nome: str) -> FileResponse:
     return FileResponse(caminho, headers={"Cache-Control": "private, max-age=86400"})
 
 
-# =========================================================================== remetentes permitidos
+# =========================================================================== remetente (conta de quem dispara)
 def conta_de_envio() -> str:
-    """Todos os disparos saem da geral@ (fixa); com o modo de teste ligado, do e-mail de teste."""
+    """Conta do sistema (geral@; com o modo de teste ligado, o e-mail de teste). Usada pelos avisos automaticos,
+    pelos disparos no modo de teste e pelos disparos antigos, criados antes do envio pela conta de cada usuario."""
     return (ajustes.obter("SMTP_FROM") or "").strip().lower()
 
 
@@ -331,21 +345,93 @@ def modo_teste() -> bool:
     return str(ajustes.obter("EMAIL_TESTE_ATIVO")).lower() == "sim" and conta_de_envio() != config.CONTA_ENVIO
 
 
+def usa_conta_propria() -> bool:
+    """Fora do modo de teste, cada disparo sai do e-mail de quem cria, com o login e a senha do AD."""
+    return not modo_teste()
+
+
+def email_do_usuario(admin: Administrador) -> str | None:
+    e = (admin.email or "").strip().lower()
+    return e if EMAIL_RE.fullmatch(e) else None
+
+
+def login_smtp(admin: Administrador) -> str:
+    """Usuario de login no servidor de e-mail, no formato escolhido em Configuracoes (o mesmo login do AD)."""
+    formato = str(ajustes.obter("SMTP_LOGIN_FORMATO") or "email").lower()
+    if formato == "usuario":
+        return admin.usuario
+    if formato == "upn":
+        return f"{admin.usuario}@{config.AD_DOMINIO}"
+    if formato == "dominio":
+        return f"{config.AD_DOMINIO.split('.')[0].upper()}\\{admin.usuario}"
+    return email_do_usuario(admin) or admin.usuario
+
+
+def _sem_email(admin: Administrador) -> HTTPException:
+    if admin.origem != "ad":
+        return HTTPException(422, "Usuários locais não têm conta de e-mail. Para disparar, entre na Gestão TI com o seu usuário do AD.")
+    return HTTPException(422, "Sua conta do AD não tem e-mail cadastrado, então não dá para disparar por ela. "
+                              "Peça à TI para preencher o campo E-mail da sua conta no AD e entre de novo na Gestão TI.")
+
+
 def remetentes_permitidos(admin: Administrador) -> list[dict]:
-    conta = conta_de_envio()
-    if not conta:
-        return []
-    if modo_teste():
-        return [{"email": conta, "tipo": "teste", "rotulo": "Modo de teste ligado em Configurações"}]
-    return [{"email": conta, "tipo": "padrao", "rotulo": "Conta de envio da Gestão TI"}]
+    if not usa_conta_propria():
+        conta = conta_de_envio()
+        return [{"email": conta, "tipo": "teste", "rotulo": "Modo de teste ligado em Configurações"}] if conta else []
+    e = email_do_usuario(admin)
+    return [{"email": e, "tipo": "proprio", "rotulo": "Sua conta de e-mail (cadastrada no AD)"}] if e and admin.origem == "ad" else []
 
 
 def escolher_remetente(admin: Administrador, pedido: str | None = None) -> str:
-    """Ignora qualquer outro endereco: o envio e sempre pela conta unica."""
-    conta = conta_de_envio()
-    if not conta or not EMAIL_RE.fullmatch(conta):
-        raise HTTPException(422, "A conta de envio dos e-mails não está configurada. Configure em Configurações → E-mail do remetente.")
-    return conta
+    """Ignora o endereco pedido pela tela: o disparo sai do e-mail de quem cria (ou da conta de teste)."""
+    if not usa_conta_propria():
+        conta = conta_de_envio()
+        if not conta or not EMAIL_RE.fullmatch(conta):
+            raise HTTPException(422, "O modo de teste está ligado, mas o e-mail de teste não está configurado (Configurações).")
+        return conta
+    e = email_do_usuario(admin)
+    if not e or admin.origem != "ad":
+        raise _sem_email(admin)
+    return e
+
+
+def config_smtp_usuario(login: str, senha: str, remetente: str) -> dict:
+    """Servidor, porta e seguranca de Configuracoes, com o login e a senha da propria pessoa."""
+    return {**smtp_atual(), "SMTP_USER": login, "SMTP_PASSWORD": senha, "SMTP_FROM": remetente}
+
+
+MSG_PRECISA_SENHA = "Informe a sua senha da rede para enviar pelo seu e-mail."
+
+
+def conta_para_envio(admin: Administrador, senha: str | None) -> tuple[dict | None, str]:
+    """(configuracao do SMTP, remetente) para um envio feito agora por quem esta logado.
+    Modo de teste: conta de teste de Configuracoes (None = usa o que esta salvo). Normal: conta da propria pessoa."""
+    remetente = escolher_remetente(admin)
+    if not usa_conta_propria():
+        return None, remetente
+    if not senha:
+        raise HTTPException(428, MSG_PRECISA_SENHA)
+    return config_smtp_usuario(login_smtp(admin), senha, remetente), remetente
+
+
+MSG_SENHA_RECUSADA = ("O servidor de e-mail recusou a senha. Use a mesma senha do login da rede (AD). "
+                      "Se trocou a senha há pouco, use a nova.")
+
+
+def conferir_senha_email(login: str, senha: str, remetente: str) -> None:
+    """Entra no servidor de e-mail com a conta da pessoa, so para conferir a senha (nada e enviado)."""
+    if not senha:
+        raise HTTPException(422, "Informe a sua senha da rede para enviar pelo seu e-mail.")
+    try:
+        smtp = abrir_smtp(config_smtp_usuario(login, senha, remetente), timeout=20)
+    except smtplib.SMTPAuthenticationError:
+        raise HTTPException(422, MSG_SENHA_RECUSADA)
+    except Exception as erro:  # noqa: BLE001 - devolve o motivo para a tela
+        raise HTTPException(502, f"Não foi possível conectar ao servidor de e-mail: {erro}")
+    try:
+        smtp.quit()
+    except Exception:  # noqa: BLE001
+        pass
 
 
 @router.get("/remetentes")
@@ -362,10 +448,12 @@ class Teste(BaseModel):
     remetente_email: str | None = Field(default=None, max_length=254)
     responder_para: str | None = Field(default=None, max_length=200)
     disparo_id: int | None = None
+    senha: str | None = Field(default=None, max_length=500)    # senha do AD (envio pela propria conta)
 
 
 @router.post("/teste")
-def enviar_teste(dados: Teste, request: Request, admin: Administrador = EmailDep) -> dict:
+def enviar_teste(dados: Teste, request: Request, response: Response, admin: Administrador = EmailDep,
+                 sessao: str | None = auth.SessaoCookie) -> dict:
     """Envia a mensagem para um endereco so (o da propria pessoa), para conferir antes do disparo."""
     para = dados.para.strip().lower()
     if not EMAIL_RE.fullmatch(para):
@@ -375,14 +463,18 @@ def enviar_teste(dados: Teste, request: Request, admin: Administrador = EmailDep
         with SessionLocal() as s:
             d = _obter(s, admin, dados.disparo_id)
             anexos = [(a.nome, a.tipo, Path(a.caminho).read_bytes()) for a in d.anexos if Path(a.caminho).exists()]
-    remetente = escolher_remetente(admin, dados.remetente_email)
+    cfg, remetente = conta_para_envio(admin, dados.senha or auth.senha_da_sessao(sessao))
     msg = montar_mensagem("[TESTE] " + dados.assunto, extrair_imagens_coladas(limpar_html(dados.corpo_html)), dados.remetente_nome,
                           dados.responder_para, para, admin.nome, anexos, remetente_email=remetente)
     try:
-        with abrir_smtp() as smtp:
+        with abrir_smtp(cfg) as smtp:
             smtp.send_message(msg)
+    except smtplib.SMTPAuthenticationError:
+        raise HTTPException(422, MSG_SENHA_RECUSADA)
     except Exception as erro:  # noqa: BLE001 - devolve o motivo para a tela
         raise HTTPException(502, f"O servidor de e-mail recusou o envio de teste: {erro}")
+    if dados.senha and usa_conta_propria():
+        auth.trocar_senha_na_sessao(response, sessao, dados.senha)   # senha digitada agora passa a valer na sessao
     with SessionLocal() as s:
         _evento(s, "email_teste", admin.usuario, f"Teste enviado para {para}", ip=auth.ip_do_cliente(request))
         s.commit()
@@ -418,7 +510,9 @@ def _resumo(s, d: Disparo) -> dict:
             "proximo_bloco_em": _iso(d.proximo_bloco_em), "criado_por": d.criado_por, "criado_em": _iso(d.criado_em),
             "iniciado_em": _iso(d.iniciado_em), "concluido_em": _iso(d.concluido_em), "ultimo_erro": d.ultimo_erro,
             "remetente_nome": d.remetente_nome, "remetente_email": d.remetente_email or ajustes.obter("SMTP_FROM"),
-            "responder_para": d.responder_para,
+            "responder_para": d.responder_para, "conta_propria": d.conta_propria,
+            "credito_usado": d.credito_usado, "credito_devolvido": d.credito_devolvido,
+            "precisa_senha": bool(d.conta_propria and d.status in ("pausado", "aguardando_bloco") and not d.senha_cifrada),
             "anexos": [{"id": a.id, "nome": a.nome, "tamanho": a.tamanho} for a in d.anexos]}
 
 
@@ -442,6 +536,9 @@ def criar_disparo(dados: NovoDisparo, request: Request, admin: Administrador = E
     if dados.modo not in ("automatico", "manual"):
         raise HTTPException(422, "Modo de envio inválido.")
     remetente = escolher_remetente(admin, dados.remetente_email)
+    with SessionLocal() as s:
+        creditos.exigir_saldo(s, admin)   # avisa antes de montar o rascunho; o credito so e gasto ao iniciar
+        s.commit()
     vistos, dest = set(), []
     for x in dados.destinatarios:
         e = x.email.strip().lower()
@@ -460,7 +557,8 @@ def criar_disparo(dados: NovoDisparo, request: Request, admin: Administrador = E
                     remetente_email=remetente,
                     responder_para=(dados.responder_para or "").strip() or None,
                     tamanho_bloco=bloco, modo=dados.modo, intervalo_minutos=dados.intervalo_minutos,
-                    total=len(dest), total_blocos=(len(dest) + bloco - 1) // bloco, criado_por=admin.usuario)
+                    total=len(dest), total_blocos=(len(dest) + bloco - 1) // bloco, criado_por=admin.usuario,
+                    conta_propria=usa_conta_propria(), login_envio=login_smtp(admin) if usa_conta_propria() else None)
         s.add(d)
         s.flush()
         s.execute(DisparoDestinatario.__table__.insert(), [
@@ -577,8 +675,12 @@ def excluir_rascunho(disparo_id: int, admin: Administrador = EmailDep) -> dict:
         return {"ok": True}
 
 
+class SenhaEnvio(BaseModel):
+    senha: str | None = Field(default=None, max_length=500)
+
+
 def _mudar_status(disparo_id: int, admin: Administrador, request: Request, de: tuple, para: str, acao: str,
-                  texto: str) -> dict:
+                  texto: str, senha: str | None = None, senha_sessao: str | None = None) -> dict:
     with SessionLocal() as s:
         d = _obter(s, admin, disparo_id, para_escrita=True)
         _exigir_origem(admin, d.origem)
@@ -587,6 +689,18 @@ def _mudar_status(disparo_id: int, admin: Administrador, request: Request, de: t
         if para == "enviando":
             if not smtp_configurado():
                 raise HTTPException(409, "O servidor de e-mail não está configurado. Configure no módulo Configurações.")
+            if d.conta_propria and (senha or not d.senha_cifrada or d.status == "rascunho"):
+                # Sai do e-mail de quem criou: so essa pessoa pode informar a senha
+                if d.criado_por != admin.usuario:
+                    raise HTTPException(409, f"Este disparo sai do e-mail de {d.criado_por}. Só essa pessoa pode "
+                                             "informar a senha para o envio continuar.")
+                usar = senha or senha_sessao          # digitada agora ou a do login (cookie da sessao)
+                if not usar:
+                    raise HTTPException(428, MSG_PRECISA_SENHA)
+                conferir_senha_email(d.login_envio, usar, d.remetente_email)
+                d.senha_cifrada = ajustes.cifrar(usar)
+            if d.status == "rascunho":
+                creditos.consumir(s, admin, d)
             d.iniciado_em = d.iniciado_em or agora()
             d.proximo_bloco_em = None
             d.ultimo_erro = None
@@ -595,6 +709,9 @@ def _mudar_status(disparo_id: int, admin: Administrador, request: Request, de: t
                                                         DisparoDestinatario.status == "pendente").values(status="cancelado"))
             d.concluido_em = agora()
             d.proximo_bloco_em = None
+            d.senha_cifrada = None
+            _atualizar_contagem(s, d)
+            creditos.devolver_se_nada_saiu(s, d)
         d.status = para
         _evento(s, acao, admin.usuario, f"Disparo nº {d.id} '{d.titulo}': {texto}", ip=auth.ip_do_cliente(request))
         s.commit()
@@ -602,15 +719,29 @@ def _mudar_status(disparo_id: int, admin: Administrador, request: Request, de: t
         return _resumo(s, d)
 
 
+def _com_senha(disparo_id, admin, request, response, sessao, dados, de, acao, texto) -> dict:
+    """Inicia/retoma/libera bloco usando a senha digitada (se veio) ou a do login; senha digitada e aceita
+    passa a valer tambem na sessao."""
+    senha = dados.senha if dados else None
+    r = _mudar_status(disparo_id, admin, request, de, "enviando", acao, texto, senha=senha,
+                      senha_sessao=auth.senha_da_sessao(sessao))
+    if senha and r.get("conta_propria"):
+        auth.trocar_senha_na_sessao(response, sessao, senha)
+    return r
+
+
 @router.post("/disparos/{disparo_id}/iniciar")
-def iniciar(disparo_id: int, request: Request, admin: Administrador = EmailDep) -> dict:
-    return _mudar_status(disparo_id, admin, request, ("rascunho",), "enviando", "email_disparo_iniciado", "envio iniciado")
+def iniciar(disparo_id: int, request: Request, response: Response, dados: SenhaEnvio | None = None,
+            admin: Administrador = EmailDep, sessao: str | None = auth.SessaoCookie) -> dict:
+    return _com_senha(disparo_id, admin, request, response, sessao, dados, ("rascunho",), "email_disparo_iniciado",
+                      "envio iniciado")
 
 
 @router.post("/disparos/{disparo_id}/proximo-bloco")
-def proximo_bloco(disparo_id: int, request: Request, admin: Administrador = EmailDep) -> dict:
-    return _mudar_status(disparo_id, admin, request, ("aguardando_bloco",), "enviando", "email_bloco_liberado",
-                         "próximo bloco liberado")
+def proximo_bloco(disparo_id: int, request: Request, response: Response, dados: SenhaEnvio | None = None,
+                  admin: Administrador = EmailDep, sessao: str | None = auth.SessaoCookie) -> dict:
+    return _com_senha(disparo_id, admin, request, response, sessao, dados, ("aguardando_bloco",), "email_bloco_liberado",
+                      "próximo bloco liberado")
 
 
 @router.post("/disparos/{disparo_id}/pausar")
@@ -620,8 +751,10 @@ def pausar(disparo_id: int, request: Request, admin: Administrador = EmailDep) -
 
 
 @router.post("/disparos/{disparo_id}/retomar")
-def retomar(disparo_id: int, request: Request, admin: Administrador = EmailDep) -> dict:
-    return _mudar_status(disparo_id, admin, request, ("pausado",), "enviando", "email_disparo_retomado", "retomado")
+def retomar(disparo_id: int, request: Request, response: Response, dados: SenhaEnvio | None = None,
+            admin: Administrador = EmailDep, sessao: str | None = auth.SessaoCookie) -> dict:
+    return _com_senha(disparo_id, admin, request, response, sessao, dados, ("pausado",), "email_disparo_retomado",
+                      "retomado")
 
 
 @router.post("/disparos/{disparo_id}/cancelar")
@@ -681,7 +814,16 @@ def enviar_bloco(disparo_id: int) -> None:
             _finalizar(s, d)
             return
         modelo = (d.assunto, d.corpo_html, d.remetente_nome, d.responder_para)
-        remetente_email = conta_de_envio() or d.remetente_email   # sempre a conta unica de envio
+        cfg, sem_senha = None, False
+        if d.conta_propria:
+            remetente_email = d.remetente_email                    # o e-mail de quem criou o disparo
+            senha = ajustes.decifrar(d.senha_cifrada)
+            if senha:
+                cfg = config_smtp_usuario(d.login_envio, senha, remetente_email)
+            else:
+                sem_senha = True
+        else:
+            remetente_email = conta_de_envio() or d.remetente_email   # disparo antigo ou modo de teste: conta do sistema
         cache_imagens: dict = {}
         anexos = [(a.nome, a.tipo, Path(a.caminho).read_bytes()) for a in d.anexos if Path(a.caminho).exists()]
         pendentes = s.execute(select(DisparoDestinatario.id, DisparoDestinatario.email, DisparoDestinatario.nome)
@@ -689,6 +831,9 @@ def enviar_bloco(disparo_id: int) -> None:
                                      DisparoDestinatario.status == "pendente")
                               .order_by(DisparoDestinatario.id)).all()
         total_blocos = d.total_blocos
+    if sem_senha:
+        _pausar_por_erro(disparo_id, "A senha do e-mail não está guardada. Clique em Retomar e informe a sua senha da rede.")
+        return
     log.info("Disparo %s: enviando bloco %s de %s (%s e-mails)", disparo_id, bloco, total_blocos, len(pendentes))
 
     smtp = None
@@ -701,9 +846,13 @@ def enviar_bloco(disparo_id: int) -> None:
             for tentativa in (1, 2):
                 try:
                     if smtp is None:
-                        smtp = abrir_smtp()
+                        smtp = abrir_smtp(cfg)
                     smtp.send_message(msg)
                     break
+                except smtplib.SMTPAuthenticationError:
+                    _pausar_por_erro(disparo_id, "O servidor de e-mail recusou a senha (ela pode ter sido trocada). "
+                                                 "Clique em Retomar e informe a senha atual da rede.", apagar_senha=True)
+                    return
                 except smtplib.SMTPRecipientsRefused as e:
                     status, erro = "erro", f"Destinatário recusado: {list(e.recipients.values())[0]}"
                     break
@@ -761,18 +910,22 @@ def _finalizar(s, d: Disparo) -> None:
         d.status = "concluido"
         d.concluido_em = agora()
         d.proximo_bloco_em = None
+        d.senha_cifrada = None          # a senha so fica guardada enquanto o disparo esta em andamento
         _evento(s, "email_disparo_concluido", "sistema",
                 f"Disparo nº {d.id} '{d.titulo}' concluído: {d.enviados} enviados, {d.falhas} falhas")
+        creditos.devolver_se_nada_saiu(s, d)
     s.commit()
 
 
-def _pausar_por_erro(disparo_id: int, motivo: str) -> None:
+def _pausar_por_erro(disparo_id: int, motivo: str, apagar_senha: bool = False) -> None:
     log.warning("Disparo %s pausado: %s", disparo_id, motivo)
     with SessionLocal() as s:
         d = s.get(Disparo, disparo_id, with_for_update=True)
         _atualizar_contagem(s, d)
         if d.status == "enviando":
             d.status = "pausado"
+        if apagar_senha:
+            d.senha_cifrada = None
         d.ultimo_erro = motivo
         _evento(s, "email_disparo_pausado", "sistema", f"Disparo nº {d.id} pausado automaticamente: {motivo}")
         s.commit()

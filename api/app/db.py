@@ -172,6 +172,13 @@ class Disparo(Base):
     iniciado_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     concluido_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     ultimo_erro: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Envio pela conta de e-mail de quem criou (login e senha do AD). False = conta do sistema (disparos antigos / modo de teste)
+    conta_propria: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    login_envio: Mapped[str | None] = mapped_column(String(254), nullable=True)      # usuario de login no SMTP
+    # Senha do e-mail (criptografada), guardada so enquanto o disparo esta em andamento; apagada ao concluir/cancelar
+    senha_cifrada: Mapped[str | None] = mapped_column(Text, nullable=True)
+    credito_usado: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    credito_devolvido: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
 
     anexos: Mapped[list["DisparoAnexo"]] = relationship(back_populates="disparo", cascade="all, delete-orphan",
                                                          order_by="DisparoAnexo.id")
@@ -201,6 +208,48 @@ class DisparoAnexo(Base):
     caminho: Mapped[str] = mapped_column(String(500))
 
     disparo: Mapped[Disparo] = relationship(back_populates="anexos")
+
+
+class CreditoEmail(Base):
+    """Saldo de creditos de disparo de e-mail de cada usuario (1 credito = 1 disparo)."""
+    __tablename__ = "creditos_email"
+
+    usuario: Mapped[str] = mapped_column(String(80), primary_key=True)    # login (minusculo)
+    saldo: Mapped[int] = mapped_column(Integer, default=0)
+    atualizado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=agora)
+
+
+class MovimentoCredito(Base):
+    """Extrato dos creditos: concessoes, pedidos aprovados, consumo pelos disparos e devolucoes."""
+    __tablename__ = "creditos_movimentos"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    usuario: Mapped[str] = mapped_column(String(80), index=True)
+    quantidade: Mapped[int] = mapped_column(Integer)                       # + entrada, - saida
+    saldo_depois: Mapped[int] = mapped_column(Integer)
+    tipo: Mapped[str] = mapped_column(String(20))       # inicial | concessao | remocao | pedido | consumo | devolucao
+    disparo_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    pedido_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    motivo: Mapped[str | None] = mapped_column(Text, nullable=True)
+    por: Mapped[str] = mapped_column(String(150))
+    em: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=agora, index=True)
+
+
+class PedidoCredito(Base):
+    """Pedido de mais creditos feito pelo usuario, aprovado ou recusado por quem gerencia os creditos."""
+    __tablename__ = "creditos_pedidos"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    usuario: Mapped[str] = mapped_column(String(80), index=True)
+    nome: Mapped[str | None] = mapped_column(String(150), nullable=True)
+    quantidade: Mapped[int] = mapped_column(Integer)
+    motivo: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(12), default="pendente", index=True)  # pendente|aprovado|recusado|cancelado
+    criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=agora)
+    decidido_por: Mapped[str | None] = mapped_column(String(150), nullable=True)
+    decidido_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    quantidade_aprovada: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    resposta: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class Configuracao(Base):
@@ -257,6 +306,11 @@ _MIGRACOES = [
     "ALTER TABLE administradores ADD COLUMN IF NOT EXISTS ti BOOLEAN NOT NULL DEFAULT false",
     "ALTER TABLE disparos ADD COLUMN IF NOT EXISTS remetente_email VARCHAR(254)",
     "CREATE INDEX IF NOT EXISTS ix_disparo_dest_pendentes ON disparo_destinatarios (disparo_id, bloco, status)",
+    "ALTER TABLE disparos ADD COLUMN IF NOT EXISTS conta_propria BOOLEAN NOT NULL DEFAULT false",
+    "ALTER TABLE disparos ADD COLUMN IF NOT EXISTS login_envio VARCHAR(254)",
+    "ALTER TABLE disparos ADD COLUMN IF NOT EXISTS senha_cifrada TEXT",
+    "ALTER TABLE disparos ADD COLUMN IF NOT EXISTS credito_usado BOOLEAN NOT NULL DEFAULT false",
+    "ALTER TABLE disparos ADD COLUMN IF NOT EXISTS credito_devolvido BOOLEAN NOT NULL DEFAULT false",
 ]
 
 
