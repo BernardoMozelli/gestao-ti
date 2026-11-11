@@ -903,7 +903,15 @@ Nesse caso, use a conta acima.</p>
 <li>Se a senha for trocada no AD no meio do disparo, o servidor de e-mail recusa, o disparo é <strong>pausado</strong>, a senha guardada é
   apagada e a pessoa clica em <strong>Retomar</strong> e informa a senha nova. Só quem criou o disparo pode informar a senha.</li>
 <li>Conta sem e-mail no AD ou usuário local: a tela de disparos mostra um aviso e o envio não é liberado.</li>
-<li>O nome do remetente (padrão: o nome da pessoa) e o "Responder para" podem ser ajustados em cada disparo.</li>
+<li>O nome do remetente (padrão: o nome da pessoa) pode ser ajustado em cada disparo.</li>
+<li><strong>E-mails que não devem ser respondidos</strong> (Configurações → 3):</li>
+<li><strong>Respostas vão para:</strong> todo e-mail enviado pela Gestão TI (disparos, testes e senha do Wi-Fi Visitante) leva esse
+    endereço no cabeçalho <code>Reply-To</code> (padrão <code>naoresponda@santaluzia.mg.gov.br</code>). Quem clica em Responder escreve para ele,
+    e não para quem enviou. Nos disparos, o campo "Responder para" fica travado com esse valor. Vazio = cada disparo escolhe;</li>
+<li><strong>Aviso no fim de cada e-mail:</strong> texto curto, em letra pequena e separado por uma linha, acrescentado no fim de todo e-mail
+    (na versão HTML e na de texto) e mostrado na prévia. Vazio = sem aviso;</li>
+<li>não existe cabeçalho que tire o botão "Responder" do e-mail; a caixa <code>naoresponda@</code> no servidor de e-mail é que deve
+    recusar ou responder automaticamente.</li>
 <li>O e-mail com a senha nova do <strong>Wi-Fi Visitante</strong> e os testes de <strong>Configurações</strong> também saem da conta de quem está logado.
   Não há mais conta fixa do sistema (<code>geral@</code>) para configurar. Disparos criados antes desta versão terminam pela conta antiga.</li>
 <li><strong>Modo de teste</strong> (Configurações → 1): ligado, todos os envios saem da conta de teste informada ali (e-mail, senha ou
@@ -919,10 +927,16 @@ Nesse caso, use a conta acima.</p>
 <li><strong>Devolução automática:</strong> disparo que termina sem nenhum e-mail entregue (cancelado antes de sair ou com falha em todos)
   devolve o crédito. Disparo que entregou pelo menos um e-mail não devolve.</li>
 <li><strong>Módulo Créditos de e-mail</strong> (<code>/m/creditos-email</code>):</li>
-<li><strong>Pedidos:</strong> aprovar (pode liberar outra quantidade) ou recusar, com resposta opcional para a pessoa;</li>
-<li><strong>Usuários e saldos:</strong> todos que já entraram na Gestão TI, com saldo, disparos feitos, último disparo,
+<li><strong>Pedidos:</strong> filtro por situação em botões (Aguardando resposta, Aprovados, Recusados, Cancelados, Todos), busca por nome
+    ou login e 10 por página; aprovar (pode liberar outra quantidade) ou recusar, com resposta opcional para a pessoa;</li>
+<li><strong>Usuários e saldos:</strong> todos os usuários ativos do AD com e-mail (mesmo quem nunca entrou, com a etiqueta <em>nunca entrou</em>;
+    os créditos ficam esperando o primeiro acesso) e quem já entrou na Gestão TI. Aparece em cartões, 20 por página, com paginação (a busca
+    acha por nome, login, e-mail ou setor) e tem o botão <strong>Atualizar do AD</strong>. Se o AD não responder, aparece um aviso e a lista mostra só
+    quem já entrou, com saldo, disparos feitos, último disparo,
     e os botões <strong>Liberar créditos</strong> e <strong>Remover</strong> (sem precisar de pedido);</li>
-<li><strong>Extrato:</strong> todos os movimentos (créditos iniciais, liberados, removidos, pedidos aprovados, usados e devolvidos).</li>
+<li><strong>Extrato:</strong> todos os movimentos (créditos iniciais, liberados, removidos, pedidos aprovados, usados e devolvidos), em
+    cartões com a quantidade em destaque (verde entrada, vermelho saída), filtros Todos / Entradas / Saídas / Usados em
+    disparos, busca e 15 por página. O botão <strong>Extrato</strong> de uma pessoa abre só os movimentos dela.</li>
 <li>Quem tem o módulo Créditos de e-mail (o adm geral sempre tem) <strong>envia sem limite</strong>. O módulo <strong>não</strong> é dado automaticamente
   à equipe da TI no primeiro acesso: o adm geral concede na Gestão de Usuários.</li>
 <li><strong>Créditos iniciais</strong> de quem usa os disparos pela primeira vez: Configurações → 3 (padrão 0).</li>
@@ -972,7 +986,7 @@ Nesse caso, use a conta acima.</p>
 </tr>
 <tr>
 <td><strong>3. Disparos de e-mail dos usuários</strong></td>
-<td><strong>Módulos de e-mail liberados para todos</strong> (liga/desliga), formato do usuário de login no servidor de e-mail (e-mail, login, UPN ou DOMÍNIO\login) e créditos iniciais</td>
+<td><strong>Módulos de e-mail liberados para todos</strong> (liga/desliga), <strong>Respostas vão para</strong> e <strong>Aviso no fim de cada e-mail</strong>, formato do usuário de login no servidor de e-mail (e-mail, login, UPN ou DOMÍNIO\login) e créditos iniciais</td>
 </tr>
 <tr>
 <td><strong>4. Limites</strong></td>
@@ -1362,6 +1376,16 @@ Cada execução conta como tentativa de login no AD: não repita com senha errad
 <td><code>EMAIL_PARA_TODOS</code></td>
 <td><code>sim</code></td>
 <td>Módulos de e-mail liberados para todos (<code>sim</code>) ou só com permissão (<code>nao</code>)</td>
+</tr>
+<tr>
+<td><code>EMAIL_RESPONDER_PARA</code></td>
+<td><code>naoresponda@santaluzia.mg.gov.br</code></td>
+<td>"Responder para" fixo de todos os e-mails (vazio = sem fixo)</td>
+</tr>
+<tr>
+<td><code>EMAIL_RODAPE</code></td>
+<td>aviso de mensagem automática</td>
+<td>Texto no fim de todo e-mail (vazio = sem aviso)</td>
 </tr>
 </tbody>
 </table>

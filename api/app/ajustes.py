@@ -26,7 +26,8 @@ def conta_envio_efetiva() -> str:
 
 FIXOS = {"SMTP_FROM": conta_envio_efetiva}
 # Nestes campos, vazio salvo na tela quer dizer "vazio de verdade" (sem login / sem senha), e nao "volta ao .env"
-VAZIO_EXPLICITO = {"SMTP_USER", "SMTP_PASSWORD", "RADIUS_DB_SENHA", "RADIUS_SSH_SENHA", "RADIUS_SSH_HOST"}
+VAZIO_EXPLICITO = {"SMTP_USER", "SMTP_PASSWORD", "RADIUS_DB_SENHA", "RADIUS_SSH_SENHA", "RADIUS_SSH_HOST",
+                   "EMAIL_RESPONDER_PARA", "EMAIL_RODAPE"}   # vazio = desligado (nao volta ao .env)
 _VAZIO = "__vazio__"
 
 
@@ -54,6 +55,8 @@ CAMPOS = {
     "SMTP_LOGIN_FORMATO": (str, lambda: config.SMTP_LOGIN_FORMATO),   # email | usuario | upn | dominio
     "CREDITOS_INICIAIS": (int, lambda: config.CREDITOS_INICIAIS),
     "EMAIL_PARA_TODOS": (str, lambda: config.EMAIL_PARA_TODOS),        # sim | nao
+    "EMAIL_RESPONDER_PARA": (str, lambda: config.EMAIL_RESPONDER_PARA),
+    "EMAIL_RODAPE": (str, lambda: config.EMAIL_RODAPE),
     "RADIUS_DB_HOST": (str, lambda: config.RADIUS_DB_HOST),
     "RADIUS_DB_PORTA": (int, lambda: config.RADIUS_DB_PORTA),
     "RADIUS_DB_NOME": (str, lambda: config.RADIUS_DB_NOME),

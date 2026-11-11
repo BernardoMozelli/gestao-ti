@@ -19,7 +19,8 @@ ROTULOS = {"SMTP_HOST": "servidor", "SMTP_PORT": "porta", "SMTP_SEGURANCA": "seg
            "IMAGEM_MAX_MB": "limite por imagem", "LISTA_MAX_EMAILS": "máximo de e-mails por disparo",
            "EMAIL_TESTE_ATIVO": "modo de teste do e-mail", "EMAIL_TESTE": "e-mail de teste",
            "SMTP_LOGIN_FORMATO": "login dos usuários no e-mail", "CREDITOS_INICIAIS": "créditos iniciais",
-           "EMAIL_PARA_TODOS": "módulos de e-mail liberados para todos"}
+           "EMAIL_PARA_TODOS": "módulos de e-mail liberados para todos",
+           "EMAIL_RESPONDER_PARA": "respostas vão para", "EMAIL_RODAPE": "aviso no fim dos e-mails"}
 
 
 class ConfigEmail(BaseModel):
@@ -39,6 +40,8 @@ class ConfigEmail(BaseModel):
     SMTP_LOGIN_FORMATO: str | None = None           # email | usuario | upn | dominio
     CREDITOS_INICIAIS: int | None = Field(default=None, ge=0, le=1000)
     EMAIL_PARA_TODOS: str | None = None             # sim | nao
+    EMAIL_RESPONDER_PARA: str | None = Field(default=None, max_length=200)   # "" = sem endereco fixo
+    EMAIL_RODAPE: str | None = Field(default=None, max_length=500)           # "" = sem aviso
     senha_usuario: str | None = Field(default=None, max_length=500)   # so nos testes: senha da rede de quem testa
 
 
@@ -49,6 +52,8 @@ def _validar(d: ConfigEmail) -> None:
         raise HTTPException(422, "O e-mail de teste é inválido.")
     if d.EMAIL_TESTE_ATIVO == "sim" and not (d.EMAIL_TESTE or ajustes.obter("EMAIL_TESTE")):
         raise HTTPException(422, "Informe o e-mail de teste para ligar o modo de teste.")
+    if d.EMAIL_RESPONDER_PARA and not EMAIL_RE.fullmatch(d.EMAIL_RESPONDER_PARA.strip()):
+        raise HTTPException(422, "O endereço para onde vão as respostas não é um e-mail válido.")
     if d.EMAIL_PARA_TODOS is not None and d.EMAIL_PARA_TODOS not in ("sim", "nao"):
         raise HTTPException(422, "Liberação dos módulos de e-mail: use sim ou não.")
     if d.SMTP_LOGIN_FORMATO is not None and d.SMTP_LOGIN_FORMATO not in ("email", "usuario", "upn", "dominio"):

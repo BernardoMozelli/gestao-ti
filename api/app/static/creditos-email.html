@@ -24,13 +24,15 @@
 
     <!-- pedidos -->
     <div id="painel-pedidos" class="oculto">
-      <div class="filtros" style="margin:0 0 12px">
-        <select class="entrada" id="p-status" style="max-width:320px">
-          <option value="pendente">Aguardando resposta</option><option value="aprovado">Aprovados</option>
-          <option value="recusado">Recusados</option><option value="todos">Todos</option>
-        </select>
+      <div class="filtros" style="margin:0 0 12px;align-items:center">
+        <div class="chips-status" id="p-status">
+          <button class="chip ativo" data-status="pendente">Aguardando resposta</button><button class="chip" data-status="aprovado">Aprovados</button>
+          <button class="chip" data-status="recusado">Recusados</button><button class="chip" data-status="cancelado">Cancelados</button><button class="chip" data-status="todos">Todos</button>
+        </div>
+        <input class="entrada" id="p-busca" placeholder="Buscar por nome ou login" autocomplete="off" style="flex:1;min-width:220px">
       </div>
       <div class="lista" id="pedidos"></div>
+      <div class="paginacao" id="p-paginas" style="margin-top:14px"></div>
     </div>
 
     <!-- usuarios -->
@@ -40,20 +42,29 @@
         <select class="entrada" id="u-filtro" style="max-width:240px">
           <option value="">Todos</option><option value="zerado">Sem créditos</option><option value="com">Com créditos</option>
           <option value="pedido">Com pedido aguardando</option><option value="ilimitado">Sem limite</option>
+          <option value="entrou">Já entraram na Gestão TI</option><option value="nunca">Nunca entraram</option>
         </select>
       </div>
-      <p class="ajuda" style="margin:0 0 10px;color:var(--suave)">Aparecem todas as pessoas que já entraram na Gestão TI (os e-mails são liberados para todos) e quem já recebeu créditos.</p>
-      <div class="tabela-caixa"><table class="tabela"><thead><tr><th>Nome</th><th>E-mail</th><th>Saldo</th><th>Disparos</th><th>Último disparo</th><th style="width:1%">Ações</th></tr></thead>
-        <tbody id="usuarios"></tbody></table></div>
+      <div id="u-aviso" class="aviso-caixa oculto" style="margin-bottom:10px"></div>
+      <p class="ajuda" style="margin:0 0 10px;color:var(--suave);display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <span id="u-info">Carregando os usuários do AD…</span>
+        <button class="btn peq" id="u-atualizar" title="Busca a lista de novo no AD">Atualizar do AD</button></p>
+      <div class="lista" id="usuarios"></div>
+      <div class="paginacao" id="u-paginas" style="margin-top:14px"></div>
     </div>
 
     <!-- extrato -->
     <div id="painel-extrato" class="oculto">
-      <div class="filtros" style="margin:0 0 12px">
-        <select class="entrada" id="e-usuario" style="max-width:360px"><option value="">Todas as pessoas</option></select>
+      <div class="filtros" style="margin:0 0 12px;align-items:center">
+        <div class="chips-status" id="e-tipo">
+          <button class="chip ativo" data-tipo="">Todos</button><button class="chip" data-tipo="entrada">Entradas</button>
+          <button class="chip" data-tipo="saida">Saídas</button><button class="chip" data-tipo="consumo">Usados em disparos</button>
+        </div>
+        <input class="entrada" id="e-busca" placeholder="Buscar por pessoa, login, quem fez ou detalhe" autocomplete="off" style="flex:1;min-width:220px">
       </div>
-      <div class="tabela-caixa"><table class="tabela"><thead><tr><th>Quando</th><th>Pessoa</th><th>O quê</th><th>Qtd.</th><th>Saldo depois</th><th>Por</th><th>Detalhe</th></tr></thead>
-        <tbody id="extrato"></tbody></table></div>
+      <div id="e-pessoa" class="oculto" style="margin:0 0 12px"></div>
+      <div class="lista" id="extrato"></div>
+      <div class="paginacao" id="e-paginas" style="margin-top:14px"></div>
     </div>
   </main>
 </section>
@@ -89,10 +100,32 @@ async function contarPendentes() {
 }
 
 // ---------------------------------------------------------------- pedidos
-$('#p-status').onchange = () => carregarPedidos();
+let P_STATUS = 'pendente', P_PAGINA = 1, PEDIDOS = [];
+const P_POR_PAGINA = 10;
+$('#p-status').addEventListener('click', ev => {
+  const b = ev.target.closest('[data-status]'); if (!b) return;
+  P_STATUS = b.dataset.status; P_PAGINA = 1;
+  document.querySelectorAll('#p-status .chip').forEach(c => c.classList.toggle('ativo', c === b));
+  carregarPedidos();
+});
+$('#p-busca').addEventListener('input', () => { P_PAGINA = 1; mostrarPedidos(); });
+$('#p-paginas').addEventListener('click', ev => {
+  const b = ev.target.closest('button[data-pag]'); if (!b || b.disabled) return;
+  P_PAGINA = Number(b.dataset.pag); mostrarPedidos();
+  $('#painel-pedidos').scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
 async function carregarPedidos(silencioso = false) {
-  try {
-    const lista = await chamar('/api/email/creditos/pedidos?status=' + $('#p-status').value);
+  try { PEDIDOS = await chamar('/api/email/creditos/pedidos?status=' + P_STATUS); mostrarPedidos(); }
+  catch (e) { if (!silencioso) erro(e); }
+}
+function mostrarPedidos() {
+  {
+    const q = $('#p-busca').value.trim().toLowerCase();
+    const todos = PEDIDOS.filter(p => !q || `${p.nome || ''} ${p.usuario}`.toLowerCase().includes(q));
+    const paginas = Math.max(1, Math.ceil(todos.length / P_POR_PAGINA));
+    P_PAGINA = Math.min(Math.max(1, P_PAGINA), paginas);
+    const ini = (P_PAGINA - 1) * P_POR_PAGINA, lista = todos.slice(ini, ini + P_POR_PAGINA);
+    $('#p-paginas').innerHTML = todos.length ? `<span>${numero(ini + 1)}–${numero(ini + lista.length)} de ${numero(todos.length)}</span>` + botoesPaginas(P_PAGINA, paginas) : '';
     $('#pedidos').innerHTML = lista.map(p => `<article class="item">
         <div class="topo-item"><b>${esc(p.nome || p.usuario)}</b><span class="tag">${esc(p.usuario)}</span><span class="tag ${p.status}">${esc(p.status_nome)}</span><span class="tag">nº ${p.id}</span></div>
         <div class="meta"><span>Pediu <b>${txtCreditos(p.quantidade)}</b> em ${dataHora(p.criado_em)}</span><span>Saldo atual: <b>${txtCreditos(p.saldo_atual)}</b></span>
@@ -101,9 +134,9 @@ async function carregarPedidos(silencioso = false) {
         ${p.resposta ? `<div class="quebra" style="font-size:14px;color:var(--suave)">Resposta: ${esc(p.resposta)}</div>` : ''}
         ${p.status === 'pendente' ? `<div class="acoes"><button class="btn peq primario" data-op="aprovar" data-id="${p.id}">Aprovar</button>
           <button class="btn peq contorno-perigo" data-op="recusar" data-id="${p.id}">Recusar</button></div>` : ''}</article>`).join('')
-      || `<div class="vazio">${$('#p-status').value === 'pendente' ? 'Nenhum pedido aguardando resposta.' : 'Nenhum pedido aqui.'}</div>`;
+      || `<div class="vazio">${q ? 'Nenhum pedido encontrado.' : P_STATUS === 'pendente' ? 'Nenhum pedido aguardando resposta.' : 'Nenhum pedido aqui.'}</div>`;
     $('#pedidos')._lista = lista;
-  } catch (e) { if (!silencioso) erro(e); }
+  }
 }
 $('#pedidos').addEventListener('click', async ev => {
   const b = ev.target.closest('button[data-op]'); if (!b) return;
@@ -130,31 +163,63 @@ $('#pedidos').addEventListener('click', async ev => {
 });
 
 // ---------------------------------------------------------------- usuarios e saldos
-async function carregarUsuarios() {
-  try { USUARIOS = await chamar('/api/email/creditos/usuarios'); filtrarUsuarios(); }
-  catch (e) { erro(e); }
+const POR_PAGINA = 20;   // a lista do AD pode ter milhares de pessoas
+let PAGINA = 1;
+async function carregarUsuarios(atualizar = false) {
+  try {
+    const r = await chamar('/api/email/creditos/usuarios' + (atualizar ? '?atualizar=true' : ''));
+    USUARIOS = r.usuarios;
+    $('#u-aviso').textContent = r.aviso_ad || ''; $('#u-aviso').classList.toggle('oculto', !r.aviso_ad);
+    filtrarUsuarios();
+  } catch (e) { erro(e); }
 }
-$('#u-busca').addEventListener('input', () => filtrarUsuarios());
-$('#u-filtro').addEventListener('change', () => filtrarUsuarios());
+$('#u-atualizar').onclick = async ev => { const b = ev.target; b.disabled = true; await carregarUsuarios(true); b.disabled = false; toast('Lista atualizada.'); };
+$('#u-busca').addEventListener('input', () => { PAGINA = 1; filtrarUsuarios(); });
+$('#u-filtro').addEventListener('change', () => { PAGINA = 1; filtrarUsuarios(); });
+$('#u-paginas').addEventListener('click', ev => {
+  const b = ev.target.closest('button[data-pag]'); if (!b || b.disabled) return;
+  PAGINA = Number(b.dataset.pag); filtrarUsuarios();
+  $('#painel-usuarios').scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
+// Botoes de pagina: primeira, anteriores/proximas proximas da atual e ultima, com "…" no meio
+function botoesPaginas(atual, total) {
+  if (total <= 1) return '';
+  const nums = new Set([1, total, atual - 1, atual, atual + 1].filter(n => n >= 1 && n <= total));
+  let html = `<button class="btn peq" data-pag="${atual - 1}" ${atual <= 1 ? 'disabled' : ''}>Anterior</button>`, ant = 0;
+  [...nums].sort((a, b) => a - b).forEach(n => {
+    if (n - ant > 1) html += '<span>…</span>';
+    html += `<button class="btn peq ${n === atual ? 'indigo' : ''}" data-pag="${n}">${n}</button>`; ant = n;
+  });
+  return html + `<button class="btn peq" data-pag="${atual + 1}" ${atual >= total ? 'disabled' : ''}>Próxima</button>`;
+}
 function filtrarUsuarios() {
   const q = $('#u-busca').value.trim().toLowerCase(), f = $('#u-filtro').value;
-  const lista = USUARIOS.filter(u => (!q || `${u.nome} ${u.usuario} ${u.email || ''}`.toLowerCase().includes(q))
-    && (!f || (f === 'zerado' && !u.ilimitado && !u.saldo) || (f === 'com' && !u.ilimitado && u.saldo > 0) || (f === 'pedido' && u.pedido_pendente) || (f === 'ilimitado' && u.ilimitado)));
-  $('#usuarios').innerHTML = lista.map(u => `<tr>
-      <td>${esc(u.nome)}${u.ativo ? '' : ' <span class="tag negada">desativado</span>'}${u.pedido_pendente ? ' <span class="tag pendente">pedido aguardando</span>' : ''}
-        <small style="display:block;color:var(--suave)">${esc(u.usuario)}</small></td>
-      <td>${u.email ? esc(u.email) : '<span style="color:var(--ruim)">sem e-mail no AD</span>'}</td>
-      <td>${u.ilimitado ? '<span class="tag indigo">sem limite</span>' : `<span class="saldo-num ${u.saldo ? '' : 'zero'}">${numero(u.saldo || 0)}</span>`}</td>
-      <td>${numero(u.disparos)}</td><td>${u.ultimo_disparo ? dataHora(u.ultimo_disparo) : '—'}</td>
-      <td><div class="acoes-saldo">${u.ilimitado ? '' : `<button class="btn peq indigo" data-op="dar" data-u="${esc(u.usuario)}">Liberar</button>
-        <button class="btn peq contorno-perigo" data-op="tirar" data-u="${esc(u.usuario)}" ${u.saldo ? '' : 'disabled title="Sem créditos para remover"'}>Remover</button>`}
-        <button class="btn peq" data-op="extrato" data-u="${esc(u.usuario)}">Extrato</button></div></td></tr>`).join('')
-    || '<tr><td colspan="6" style="text-align:center;color:var(--suave);padding:24px">Ninguém encontrado.</td></tr>';
+  const lista = USUARIOS.filter(u => (!q || `${u.nome} ${u.usuario} ${u.email || ''} ${u.unidade || ''}`.toLowerCase().includes(q))
+    && (!f || (f === 'zerado' && !u.ilimitado && !u.saldo) || (f === 'com' && !u.ilimitado && u.saldo > 0) || (f === 'pedido' && u.pedido_pendente)
+      || (f === 'ilimitado' && u.ilimitado) || (f === 'entrou' && !u.nunca_entrou) || (f === 'nunca' && u.nunca_entrou)));
+  const paginas = Math.max(1, Math.ceil(lista.length / POR_PAGINA));
+  PAGINA = Math.min(Math.max(1, PAGINA), paginas);
+  const ini = (PAGINA - 1) * POR_PAGINA, pagina = lista.slice(ini, ini + POR_PAGINA);
+  $('#u-info').textContent = `${numero(USUARIOS.length)} pessoas (usuários ativos do AD com e-mail e quem já entrou na Gestão TI)`
+    + (q || f ? ` · ${numero(lista.length)} encontrada(s)` : '');
+  $('#usuarios').innerHTML = pagina.map(u => `<article class="item">
+      <div class="topo-item"><b>${esc(u.nome)}</b><span class="tag">${esc(u.usuario)}</span>
+        ${u.ativo ? '' : '<span class="tag negada">desativado</span>'}${u.pedido_pendente ? '<span class="tag pendente">pedido aguardando</span>' : ''}
+        ${u.nunca_entrou ? '<span class="tag" title="Ainda não entrou na Gestão TI. Os créditos ficam esperando o primeiro acesso.">nunca entrou</span>' : ''}
+        <span style="flex:1"></span>
+        ${u.ilimitado ? '<span class="tag indigo">sem limite</span>' : `<span class="saldo-num ${u.saldo ? '' : 'zero'}">${txtCreditos(u.saldo || 0)}</span>`}</div>
+      <div class="meta"><span>${u.email ? esc(u.email) : '<span style="color:var(--ruim)">sem e-mail no AD</span>'}</span>${u.unidade ? `<span>Setor: ${esc(u.unidade)}</span>` : ''}
+        <span>${numero(u.disparos)} disparo(s)</span><span>Último disparo: ${u.ultimo_disparo ? dataHora(u.ultimo_disparo) : '—'}</span></div>
+      <div class="acoes">${u.ilimitado ? '' : `<button class="btn peq indigo" data-op="dar" data-u="${esc(u.usuario)}">Liberar créditos</button>
+        <button class="btn peq contorno-perigo" data-op="tirar" data-u="${esc(u.usuario)}" ${u.saldo ? '' : 'disabled title="Sem créditos para remover"'}>Remover créditos</button>`}
+        <button class="btn peq" data-op="extrato" data-u="${esc(u.usuario)}">Extrato</button></div></article>`).join('')
+    || '<div class="vazio">Ninguém encontrado.</div>';
+  $('#u-paginas').innerHTML = lista.length ? `<span>${numero(ini + 1)}–${numero(ini + pagina.length)} de ${numero(lista.length)}</span>` + botoesPaginas(PAGINA, paginas) : '';
 }
 $('#usuarios').addEventListener('click', async ev => {
   const b = ev.target.closest('button[data-op]'); if (!b) return;
   const u = USUARIOS.find(x => x.usuario === b.dataset.u); if (!u) return;
-  if (b.dataset.op === 'extrato') { trocarAba('extrato'); $('#e-usuario').value = u.usuario; return carregarExtrato(); }
+  if (b.dataset.op === 'extrato') return extratoDe(u.usuario);
   const dar = b.dataset.op === 'dar';
   const r = await Swal.fire({ title: dar ? 'Liberar créditos' : 'Remover créditos', showCancelButton: true, focusConfirm: false,
     confirmButtonText: dar ? 'Liberar' : 'Remover', cancelButtonText: 'Voltar', customClass: dar ? {} : { confirmButton: 'perigo' },
@@ -177,18 +242,51 @@ $('#usuarios').addEventListener('click', async ev => {
 });
 
 // ---------------------------------------------------------------- extrato
-$('#e-usuario').onchange = () => carregarExtrato();
+let E_PESSOA = '', E_TIPO = '', E_PAGINA = 1, MOVIMENTOS = [];
+const E_POR_PAGINA = 15;
+$('#e-tipo').addEventListener('click', ev => {
+  const b = ev.target.closest('[data-tipo]'); if (!b) return;
+  E_TIPO = b.dataset.tipo; E_PAGINA = 1;
+  document.querySelectorAll('#e-tipo .chip').forEach(c => c.classList.toggle('ativo', c === b));
+  mostrarExtrato();
+});
+$('#e-busca').addEventListener('input', () => { E_PAGINA = 1; mostrarExtrato(); });
+$('#e-pessoa').addEventListener('click', ev => { if (ev.target.closest('[data-limpar]')) { E_PESSOA = ''; E_PAGINA = 1; carregarExtrato(); } });
+$('#e-paginas').addEventListener('click', ev => {
+  const b = ev.target.closest('button[data-pag]'); if (!b || b.disabled) return;
+  E_PAGINA = Number(b.dataset.pag); mostrarExtrato();
+  $('#painel-extrato').scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
+// Abre o extrato de uma pessoa (botao Extrato da aba Usuarios e saldos)
+function extratoDe(login) { E_PESSOA = login; E_PAGINA = 1; $('#e-busca').value = ''; trocarAba('extrato'); }
+const nomeDe = login => (USUARIOS.find(u => u.usuario === login) || {}).nome;
 async function carregarExtrato() {
   try {
-    if (!USUARIOS.length) USUARIOS = await chamar('/api/email/creditos/usuarios');
-    const atual = $('#e-usuario').value;
-    $('#e-usuario').innerHTML = '<option value="">Todas as pessoas</option>' + USUARIOS.map(u => `<option value="${esc(u.usuario)}">${esc(u.nome)} (${esc(u.usuario)})</option>`).join('');
-    $('#e-usuario').value = atual;
-    const lista = await chamar('/api/email/creditos/movimentos' + (atual ? '?usuario=' + encodeURIComponent(atual) : ''));
-    $('#extrato').innerHTML = lista.map(m => `<tr><td>${dataHora(m.em)}</td><td>${esc(m.nome || m.usuario)}</td><td>${esc(m.tipo_nome)}</td>
-        <td class="${m.quantidade > 0 ? 'mais' : 'menos'}">${m.quantidade > 0 ? '+' : ''}${m.quantidade}</td><td>${m.saldo_depois}</td><td>${esc(m.por)}</td><td class="quebra">${esc(m.motivo || '')}</td></tr>`).join('')
-      || '<tr><td colspan="7" style="text-align:center;color:var(--suave);padding:24px">Nenhum movimento ainda.</td></tr>';
+    MOVIMENTOS = await chamar('/api/email/creditos/movimentos' + (E_PESSOA ? '?usuario=' + encodeURIComponent(E_PESSOA) : ''));
+    const nome = nomeDe(E_PESSOA) || (MOVIMENTOS[0] || {}).nome || E_PESSOA;
+    $('#e-pessoa').innerHTML = E_PESSOA ? `<span class="tag indigo" style="font-size:13px;padding:6px 12px">Extrato de ${esc(nome)} (${esc(E_PESSOA)})</span>
+      <button class="btn peq" data-limpar>Ver de todas as pessoas</button>` : '';
+    $('#e-pessoa').classList.toggle('oculto', !E_PESSOA);
+    mostrarExtrato();
   } catch (e) { erro(e); }
+}
+function mostrarExtrato() {
+  const q = $('#e-busca').value.trim().toLowerCase();
+  const todos = MOVIMENTOS.filter(m => (!E_TIPO || (E_TIPO === 'entrada' && m.quantidade > 0) || (E_TIPO === 'saida' && m.quantidade < 0) || (E_TIPO === 'consumo' && m.tipo === 'consumo'))
+    && (!q || `${m.nome || nomeDe(m.usuario) || ''} ${m.usuario} ${m.por} ${m.motivo || ''} ${m.tipo_nome}`.toLowerCase().includes(q)));
+  const paginas = Math.max(1, Math.ceil(todos.length / E_POR_PAGINA));
+  E_PAGINA = Math.min(Math.max(1, E_PAGINA), paginas);
+  const ini = (E_PAGINA - 1) * E_POR_PAGINA, lista = todos.slice(ini, ini + E_POR_PAGINA);
+  $('#extrato').innerHTML = lista.map(m => `<article class="item mov">
+      <span class="mov-qtd ${m.quantidade > 0 ? 'mais' : 'menos'}">${m.quantidade > 0 ? '+' : ''}${m.quantidade}</span>
+      <div class="mov-corpo">
+        <div class="topo-item"><b>${esc(m.tipo_nome)}</b><span>·</span>${(m.nome || nomeDe(m.usuario)) ? `<span>${esc(m.nome || nomeDe(m.usuario))}</span>` : ''}<span class="tag">${esc(m.usuario)}</span>
+          <span style="flex:1"></span><span class="mov-saldo">saldo: <b>${txtCreditos(m.saldo_depois)}</b></span></div>
+        <div class="meta"><span>${dataHora(m.em)}</span><span>por ${esc(m.por)}</span>${m.disparo_id ? `<span>disparo nº ${m.disparo_id}</span>` : ''}</div>
+        ${m.motivo ? `<div class="quebra" style="font-size:14px;color:var(--suave)">${esc(m.motivo)}</div>` : ''}
+      </div></article>`).join('')
+    || `<div class="vazio">${q || E_TIPO ? 'Nenhum movimento encontrado.' : 'Nenhum movimento ainda.'}</div>`;
+  $('#e-paginas').innerHTML = todos.length ? `<span>${numero(ini + 1)}–${numero(ini + lista.length)} de ${numero(todos.length)}</span>` + botoesPaginas(E_PAGINA, paginas) : '';
 }
 
 carregarMarca().then(abrir);

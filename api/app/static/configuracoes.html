@@ -86,6 +86,16 @@
           <input class="entrada" id="CREDITOS_INICIAIS" type="number" min="0" max="1000">
           <p class="ajuda">1 crédito = 1 disparo. Com 0, a pessoa precisa pedir créditos (ou receber no módulo Créditos de e-mail) antes do primeiro disparo.</p></div>
       </div>
+    
+      <div class="linha-campos">
+        <div class="campo"><label for="EMAIL_RESPONDER_PARA">Respostas vão para</label>
+          <input class="entrada" id="EMAIL_RESPONDER_PARA" placeholder="ex.: naoresponda@santaluzia.mg.gov.br" autocomplete="off">
+          <p class="ajuda">Todo e-mail enviado pela Gestão TI leva este endereço em “Responder para”: quem clicar em Responder escreve para ele, e não para quem enviou.
+            O campo “Responder para” dos disparos fica travado com este valor. Deixe vazio para cada disparo escolher.</p></div>
+        <div class="campo"><label for="EMAIL_RODAPE">Aviso no fim de cada e-mail</label>
+          <textarea class="entrada" id="EMAIL_RODAPE" rows="3" maxlength="500"></textarea>
+          <p class="ajuda">Aparece em letra pequena, separado por uma linha, no fim de todo e-mail. Deixe vazio para não colocar aviso.</p></div>
+      </div>
     </section>
 
     <!-- 4. Limites -->
@@ -238,7 +248,7 @@ function tipoDoServidor(d) {
 }
 
 function preencher(d) {
-  ['SMTP_HOST', 'SMTP_PORT', 'SMTP_SEGURANCA', 'LISTA_MAX_EMAILS', 'ANEXOS_MAX_MB', 'IMAGEM_MAX_MB', 'SMTP_LOGIN_FORMATO', 'CREDITOS_INICIAIS']
+  ['SMTP_HOST', 'SMTP_PORT', 'SMTP_SEGURANCA', 'LISTA_MAX_EMAILS', 'ANEXOS_MAX_MB', 'IMAGEM_MAX_MB', 'SMTP_LOGIN_FORMATO', 'CREDITOS_INICIAIS', 'EMAIL_RESPONDER_PARA', 'EMAIL_RODAPE']
     .forEach(k => { $('#' + k).value = d[k] ?? ''; });
   $('#por_minuto').value = msParaMinuto(d.ENVIO_PAUSA_MS);
   $('#EMAIL_TESTE_ATIVO').checked = String(d.EMAIL_TESTE_ATIVO).toLowerCase() === 'sim';
@@ -278,6 +288,7 @@ function lerTela() {
     LISTA_MAX_EMAILS: num('LISTA_MAX_EMAILS'), ANEXOS_MAX_MB: num('ANEXOS_MAX_MB'), IMAGEM_MAX_MB: num('IMAGEM_MAX_MB'),
     SMTP_LOGIN_FORMATO: $('#SMTP_LOGIN_FORMATO').value, CREDITOS_INICIAIS: num('CREDITOS_INICIAIS'),
     EMAIL_PARA_TODOS: $('#EMAIL_PARA_TODOS').checked ? 'sim' : 'nao',
+    EMAIL_RESPONDER_PARA: $('#EMAIL_RESPONDER_PARA').value.trim(), EMAIL_RODAPE: $('#EMAIL_RODAPE').value.trim(),
   };
 }
 // Barra de salvar: mostra quando ha alteracoes

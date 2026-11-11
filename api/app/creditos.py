@@ -257,8 +257,20 @@ def _usuarios_dos_disparos(s) -> list[Administrador]:
                                                           Administrador.usuario.in_(select(CreditoEmail.usuario))))))
 
 
+def _do_ad(atualizar: bool = False) -> tuple[dict, str | None]:
+    """{login: usuario do AD com e-mail} e o aviso, se o AD nao respondeu."""
+    from . import ad
+    from .email_lote import lista_ad   # import aqui: email_lote tambem importa este modulo
+    try:
+        return {u["login"]: u for u in lista_ad(atualizar)}, None
+    except ad.ErroAD as erro:
+        return {}, f"Não foi possível ler o AD agora ({erro}). A lista mostra só quem já entrou na Gestão TI."
+
+
 @router.get("/usuarios")
-def usuarios_e_saldos(admin: Administrador = GestorDep) -> list[dict]:
+def usuarios_e_saldos(atualizar: bool = False, admin: Administrador = GestorDep) -> dict:
+    """Todos os usuarios ativos do AD com e-mail + quem ja entrou na Gestao TI, com o saldo de cada um."""
+    do_ad, aviso = _do_ad(atualizar)
     with SessionLocal() as s:
         pessoas = _usuarios_dos_disparos(s)
         saldos = {c.usuario: c for c in s.scalars(select(CreditoEmail))}
@@ -267,15 +279,26 @@ def usuarios_e_saldos(admin: Administrador = GestorDep) -> list[dict]:
                                 .group_by(MovimentoCredito.usuario)).all())
         ultimo = dict(s.execute(select(Disparo.criado_por, func.max(Disparo.iniciado_em)).group_by(Disparo.criado_por)).all())
         pendentes = set(s.scalars(select(PedidoCredito.usuario).where(PedidoCredito.status == "pendente")))
-        saida = []
+        saida, vistos = [], set()
         for a in pessoas:
             c = saldos.get(a.usuario)
+            vistos.add(a.usuario)
             saida.append({"usuario": a.usuario, "nome": a.nome, "email": a.email, "unidade": a.unidade,
-                          "ativo": a.ativo, "saldo": c.saldo if c else None,
+                          "ativo": a.ativo, "saldo": c.saldo if c else None, "nunca_entrou": False,
                           "ilimitado": auth.eh_admin_geral(a) or a.id in gestores,
                           "disparos": usados.get(a.usuario, 0), "ultimo_disparo": _iso(ultimo.get(a.usuario)),
                           "pedido_pendente": a.usuario in pendentes})
-        return sorted(saida, key=lambda x: (x["nome"] or x["usuario"]).lower())
+        for login, u in do_ad.items():            # quem ainda nao entrou na Gestao TI
+            if login in vistos:
+                continue
+            c = saldos.get(login)
+            saida.append({"usuario": login, "nome": u["nome"], "email": u["email"], "unidade": u["unidade"],
+                          "ativo": True, "saldo": c.saldo if c else None, "nunca_entrou": True,
+                          "ilimitado": login in config.ADMIN_GERAL,
+                          "disparos": usados.get(login, 0), "ultimo_disparo": _iso(ultimo.get(login)),
+                          "pedido_pendente": False})
+        saida.sort(key=lambda x: (x["nome"] or x["usuario"]).lower())
+        return {"usuarios": saida, "aviso_ad": aviso, "total": len(saida)}
 
 
 class Concessao(BaseModel):
@@ -291,16 +314,16 @@ def conceder(dados: Concessao, request: Request, admin: Administrador = GestorDe
     login = dados.usuario.strip().lower()
     with SessionLocal() as s:
         pessoa = s.scalar(select(Administrador).where(Administrador.usuario == login))
-        if not pessoa:
-            raise HTTPException(404, "Usuário não encontrado na Gestão TI. Ele precisa ter entrado pelo menos uma vez "
-                                     "ou ter recebido a permissão de e-mails na Gestão de Usuários.")
+        nome = pessoa.nome if pessoa else (_do_ad()[0].get(login) or {}).get("nome")
+        if not nome:   # nem entrou na Gestao TI nem esta no AD (ativo, com e-mail)
+            raise HTTPException(404, "Usuário não encontrado no AD (ativo e com e-mail) nem na Gestão TI.")
         c = _conta(s, login, para_escrita=True)
         if c.saldo + dados.quantidade < 0:
-            raise HTTPException(422, f"{pessoa.nome} tem {texto_creditos(c.saldo)}. Não dá para remover {abs(dados.quantidade)}.")
+            raise HTTPException(422, f"{nome} tem {texto_creditos(c.saldo)}. Não dá para remover {abs(dados.quantidade)}.")
         tipo = "concessao" if dados.quantidade > 0 else "remocao"
         _mover(s, c, dados.quantidade, tipo, admin.usuario, dados.motivo.strip() or None)
         _evento(s, "email_credito_concedido" if dados.quantidade > 0 else "email_credito_removido", admin.usuario,
-                f"{pessoa.nome} ({login}): {'+' if dados.quantidade > 0 else ''}{dados.quantidade} · saldo agora {c.saldo}"
+                f"{nome} ({login}): {'+' if dados.quantidade > 0 else ''}{dados.quantidade} · saldo agora {c.saldo}"
                 + (f" · motivo: {dados.motivo.strip()}" if dados.motivo.strip() else ""), ip=auth.ip_do_cliente(request))
         s.commit()
         return {"usuario": login, "saldo": c.saldo}
@@ -312,6 +335,7 @@ def movimentos(usuario: str | None = None, admin: Administrador = GestorDep) -> 
         q = select(MovimentoCredito)
         if usuario:
             q = q.where(MovimentoCredito.usuario == usuario.strip().lower())
-        nomes = dict(s.execute(select(Administrador.usuario, Administrador.nome)).all())
+        nomes = {login: u["nome"] for login, u in _do_ad()[0].items()}      # quem nunca entrou: nome do AD
+        nomes.update(dict(s.execute(select(Administrador.usuario, Administrador.nome)).all()))
         return [{**_mov_dict(m), "nome": nomes.get(m.usuario)} for m in
-                s.scalars(q.order_by(MovimentoCredito.id.desc()).limit(500))]
+                s.scalars(q.order_by(MovimentoCredito.id.desc()).limit(3000))]

@@ -517,7 +517,15 @@ FLUSH PRIVILEGES;
 - Se a senha for trocada no AD no meio do disparo, o servidor de e-mail recusa, o disparo é **pausado**, a senha guardada é
   apagada e a pessoa clica em **Retomar** e informa a senha nova. Só quem criou o disparo pode informar a senha.
 - Conta sem e-mail no AD ou usuário local: a tela de disparos mostra um aviso e o envio não é liberado.
-- O nome do remetente (padrão: o nome da pessoa) e o "Responder para" podem ser ajustados em cada disparo.
+- O nome do remetente (padrão: o nome da pessoa) pode ser ajustado em cada disparo.
+- **E-mails que não devem ser respondidos** (Configurações → 3):
+  - **Respostas vão para:** todo e-mail enviado pela Gestão TI (disparos, testes e senha do Wi-Fi Visitante) leva esse
+    endereço no cabeçalho `Reply-To` (padrão `naoresponda@santaluzia.mg.gov.br`). Quem clica em Responder escreve para ele,
+    e não para quem enviou. Nos disparos, o campo "Responder para" fica travado com esse valor. Vazio = cada disparo escolhe;
+  - **Aviso no fim de cada e-mail:** texto curto, em letra pequena e separado por uma linha, acrescentado no fim de todo e-mail
+    (na versão HTML e na de texto) e mostrado na prévia. Vazio = sem aviso;
+  - não existe cabeçalho que tire o botão "Responder" do e-mail; a caixa `naoresponda@` no servidor de e-mail é que deve
+    recusar ou responder automaticamente.
 - O e-mail com a senha nova do **Wi-Fi Visitante** e os testes de **Configurações** também saem da conta de quem está logado.
   Não há mais conta fixa do sistema (`geral@`) para configurar. Disparos criados antes desta versão terminam pela conta antiga.
 - **Modo de teste** (Configurações → 1): ligado, todos os envios saem da conta de teste informada ali (e-mail, senha ou
@@ -533,10 +541,16 @@ FLUSH PRIVILEGES;
 - **Devolução automática:** disparo que termina sem nenhum e-mail entregue (cancelado antes de sair ou com falha em todos)
   devolve o crédito. Disparo que entregou pelo menos um e-mail não devolve.
 - **Módulo Créditos de e-mail** (`/m/creditos-email`):
-  - **Pedidos:** aprovar (pode liberar outra quantidade) ou recusar, com resposta opcional para a pessoa;
-  - **Usuários e saldos:** todos que já entraram na Gestão TI, com saldo, disparos feitos, último disparo,
+  - **Pedidos:** filtro por situação em botões (Aguardando resposta, Aprovados, Recusados, Cancelados, Todos), busca por nome
+    ou login e 10 por página; aprovar (pode liberar outra quantidade) ou recusar, com resposta opcional para a pessoa;
+  - **Usuários e saldos:** todos os usuários ativos do AD com e-mail (mesmo quem nunca entrou, com a etiqueta *nunca entrou*;
+    os créditos ficam esperando o primeiro acesso) e quem já entrou na Gestão TI. Aparece em cartões, 20 por página, com paginação (a busca
+    acha por nome, login, e-mail ou setor) e tem o botão **Atualizar do AD**. Se o AD não responder, aparece um aviso e a lista mostra só
+    quem já entrou, com saldo, disparos feitos, último disparo,
     e os botões **Liberar créditos** e **Remover** (sem precisar de pedido);
-  - **Extrato:** todos os movimentos (créditos iniciais, liberados, removidos, pedidos aprovados, usados e devolvidos).
+  - **Extrato:** todos os movimentos (créditos iniciais, liberados, removidos, pedidos aprovados, usados e devolvidos), em
+    cartões com a quantidade em destaque (verde entrada, vermelho saída), filtros Todos / Entradas / Saídas / Usados em
+    disparos, busca e 15 por página. O botão **Extrato** de uma pessoa abre só os movimentos dela.
 - Quem tem o módulo Créditos de e-mail (o adm geral sempre tem) **envia sem limite**. O módulo **não** é dado automaticamente
   à equipe da TI no primeiro acesso: o adm geral concede na Gestão de Usuários.
 - **Créditos iniciais** de quem usa os disparos pela primeira vez: Configurações → 3 (padrão 0).
@@ -578,7 +592,7 @@ A tela é dividida em cartões numerados, com uma barra de **Salvar** fixa no ro
 | --- | --- |
 | **1. Conta que envia os e-mails** | Explica que tudo sai da conta de quem está logado. Só tem o **modo de teste**: e-mail e senha da conta de teste, ou "o servidor não pede login" |
 | **2. Servidor de e-mail** | Tipo (servidor próprio, Microsoft 365, Google, teste) preenche os campos; servidor, porta, segurança (STARTTLS/SSL/nenhuma). Botões **Testar conexão** e **Enviar e-mail de teste**, que usam a conta de quem está testando (ou a de teste) |
-| **3. Disparos de e-mail dos usuários** | **Módulos de e-mail liberados para todos** (liga/desliga), formato do usuário de login no servidor de e-mail (e-mail, login, UPN ou DOMÍNIO\login) e créditos iniciais |
+| **3. Disparos de e-mail dos usuários** | **Módulos de e-mail liberados para todos** (liga/desliga), **Respostas vão para** e **Aviso no fim de cada e-mail**, formato do usuário de login no servidor de e-mail (e-mail, login, UPN ou DOMÍNIO\login) e créditos iniciais |
 | **4. Limites** | Pausa entre e-mails (em e-mails por minuto), tamanho dos anexos e das imagens, máximo de destinatários |
 | **5. Wi-Fi Visitante** | Banco do RADIUS, SSH, tabelas, Testar e Conferir formato (ver seção 9) |
 
@@ -720,6 +734,8 @@ Depois de editar: `cd /opt/gestao-ti && sudo docker compose up -d`.
 | `SMTP_LOGIN_FORMATO` | `email` | Usuário de login dos disparos no servidor de e-mail: `email`, `usuario`, `upn` ou `dominio` |
 | `CREDITOS_INICIAIS` | `0` | Créditos de quem usa os disparos pela primeira vez |
 | `EMAIL_PARA_TODOS` | `sim` | Módulos de e-mail liberados para todos (`sim`) ou só com permissão (`nao`) |
+| `EMAIL_RESPONDER_PARA` | `naoresponda@santaluzia.mg.gov.br` | "Responder para" fixo de todos os e-mails (vazio = sem fixo) |
+| `EMAIL_RODAPE` | aviso de mensagem automática | Texto no fim de todo e-mail (vazio = sem aviso) |
 
 ### Wi-Fi Visitante (podem ser sobrescritas pela tela, que é o recomendado)
 

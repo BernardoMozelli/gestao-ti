@@ -101,7 +101,11 @@ CACHE_AD_MINUTOS = int(_env("CACHE_AD_MINUTOS", "10"))           # lista de e-ma
 SMTP_LOGIN_FORMATO = _env("SMTP_LOGIN_FORMATO", "email").lower()
 CREDITOS_INICIAIS = int(_env("CREDITOS_INICIAIS", "0"))
 # Modulos de e-mail liberados para todos (sim) ou so para quem recebe a permissao (nao)
-EMAIL_PARA_TODOS = _env("EMAIL_PARA_TODOS", "sim").lower()          # creditos de quem usa os disparos pela primeira vez
+EMAIL_PARA_TODOS = _env("EMAIL_PARA_TODOS", "sim").lower()
+# Respostas: todo e-mail enviado leva "Responder para" este endereco (vazio = sem fixo) e um aviso no fim (vazio = sem aviso)
+EMAIL_RESPONDER_PARA = _env("EMAIL_RESPONDER_PARA", "naoresponda@santaluzia.mg.gov.br")
+EMAIL_RODAPE = _env("EMAIL_RODAPE", "Esta é uma mensagem automática da Prefeitura Municipal de Santa Luzia. "
+                                    "Por favor, não responda a este e-mail.")          # creditos de quem usa os disparos pela primeira vez
 
 
 # Identidade visual e nomes exibidos no painel e nas notificacoes

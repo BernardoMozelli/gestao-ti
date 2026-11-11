@@ -164,7 +164,8 @@ def montar_mensagem(assunto: str, corpo_html: str, remetente_nome: str | None, r
                     email: str, nome: str | None, anexos: list[tuple[str, str, bytes]],
                     cache_imagens: dict | None = None, remetente_email: str | None = None) -> EmailMessage:
     nome_txt = (nome or "").strip() or email.split("@")[0]
-    corpo = _substituir(corpo_html, nome_txt, email, True)
+    corpo = _substituir(corpo_html, nome_txt, email, True) + rodape_html()
+    responder_para = responder_fixo() or responder_para   # respostas sempre para o "nao responda", se configurado
     pagina = ('<!doctype html><html><body style="font-family:Arial,Helvetica,sans-serif;font-size:15px;'
               f'line-height:1.5;color:#14152b">{corpo}</body></html>')
     msg = EmailMessage()
@@ -199,6 +200,20 @@ def montar_mensagem(assunto: str, corpo_html: str, remetente_nome: str | None, r
         principal, _, secundario = (tipo or "application/octet-stream").partition("/")
         msg.add_attachment(dados, maintype=principal, subtype=secundario or "octet-stream", filename=nome_arq)
     return msg
+
+
+def responder_fixo() -> str:
+    """Endereco fixo de "Responder para" (Configuracoes); vazio = cada disparo escolhe."""
+    return (ajustes.obter("EMAIL_RESPONDER_PARA") or "").strip().lower()
+
+
+def rodape_html() -> str:
+    """Aviso automatico no fim de todo e-mail (Configuracoes); vazio = sem aviso."""
+    texto = (ajustes.obter("EMAIL_RODAPE") or "").strip()
+    if not texto:
+        return ""
+    return ('<hr style="border:none;border-top:1px solid #dcdce6;margin:28px 0 10px">'
+            f'<p style="font-size:12px;line-height:1.4;color:#6b6b80;margin:0">{html.escape(texto)}</p>')
 
 
 def smtp_atual() -> dict:
@@ -268,6 +283,7 @@ def configuracao(admin: Administrador = EmailDep, sessao: str | None = auth.Sess
             "pode_ad": "email_ad" in admin.modulos, "pode_lista": "email_lista" in admin.modulos,
             "busca_ad": bool(config.AD_BIND_USUARIO and config.AD_BIND_SENHA),
             "conta_propria": usa_conta_propria(),
+            "responder_fixo": responder_fixo(), "rodape": (ajustes.obter("EMAIL_RODAPE") or "").strip(),
             # A senha so e pedida na tela se a sessao nao tiver a do login (ou se o servidor de e-mail recusar)
             "precisa_senha": usa_conta_propria() and not auth.senha_da_sessao(sessao),
             "remetente_proprio": (remetentes_permitidos(admin) or [{}])[0].get("email"),
@@ -278,16 +294,21 @@ def configuracao(admin: Administrador = EmailDep, sessao: str | None = auth.Sess
 _cache_ad: dict = {"dados": None, "em": 0.0}
 
 
-@router.get("/ad/usuarios")
-def usuarios_ad(atualizar: bool = False, admin: Administrador = auth.exigir_modulo("email_ad")) -> dict:
+def lista_ad(atualizar: bool = False) -> list[dict]:
+    """Usuarios ativos do AD com e-mail, guardados em memoria por CACHE_AD_MINUTOS (levanta ad.ErroAD)."""
     idade = time.time() - _cache_ad["em"]
     if atualizar or _cache_ad["dados"] is None or idade > config.CACHE_AD_MINUTOS * 60:
-        try:
-            _cache_ad["dados"] = ad.listar_usuarios_com_email()
-        except ad.ErroAD as erro:
-            raise HTTPException(503, str(erro))
+        _cache_ad["dados"] = ad.listar_usuarios_com_email()
         _cache_ad["em"] = time.time()
-    dados = _cache_ad["dados"]
+    return _cache_ad["dados"]
+
+
+@router.get("/ad/usuarios")
+def usuarios_ad(atualizar: bool = False, admin: Administrador = auth.exigir_modulo("email_ad")) -> dict:
+    try:
+        dados = lista_ad(atualizar)
+    except ad.ErroAD as erro:
+        raise HTTPException(503, str(erro))
     unidades = sorted({u["unidade"] for u in dados if u["unidade"]}, key=str.lower)
     return {"usuarios": dados, "unidades": unidades, "total": len(dados),
             "atualizado_em": time.strftime("%d/%m/%Y %H:%M", time.localtime(_cache_ad["em"]))}

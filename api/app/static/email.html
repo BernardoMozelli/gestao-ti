@@ -187,6 +187,7 @@ async function abrir() {
   } catch (e) { $('#m-remetente-email').value = ''; }
   if (CFG.sem_email_motivo) { $('#aviso-email').innerHTML = `<b>Não dá para disparar pela sua conta.</b> ${esc(CFG.sem_email_motivo)}`; $('#aviso-email').classList.remove('oculto'); }
   renderCreditos(CFG.creditos);
+  aplicarResponderFixo();
   $('#dest-ad').classList.toggle('oculto', ORIGEM !== 'ad');
   $('#dest-lista').classList.toggle('oculto', ORIGEM !== 'lista');
   $('#anexos-info').textContent = `PDF, Word, Excel, imagens e outros documentos, até ${CFG.anexos_max_mb} MB no total. Arquivos executáveis (.exe, .bat, .js…) não são aceitos.`;
@@ -533,7 +534,7 @@ function revisar() {
     <div class="meta" style="font-size:14px;color:var(--tinta)"><span>Assunto: <b>${esc(trocar(m.assunto, d[0]))}</b></span><span>De: ${esc(m.remetente_nome || CFG.remetente_nome)} &lt;${esc(m.remetente_email || CFG.remetente || 'não configurado')}&gt;</span></div>`;
   renderPara('r-para');
   $('#r-previa').onload = ajustarPrevia;
-  $('#r-previa').srcdoc = `<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.5;color:#14152b;padding:8px">${trocarHtml(m.corpo_html, d[0])}</div>`;
+  $('#r-previa').srcdoc = `<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.5;color:#14152b;padding:8px">${trocarHtml(m.corpo_html, d[0])}${rodapePrevia()}</div>`;
 }
 // Ajusta a altura da previa ao tamanho da mensagem (o iframe nao roda scripts)
 function ajustarPrevia(ev) {
@@ -634,9 +635,20 @@ async function iniciarComSenha(id, op = 'iniciar') {
   }
   throw new Error('A senha foi recusada várias vezes. Confira a sua senha da rede e tente de novo.');
 }
+// "Responder para" fixo (Configuracoes): o campo fica travado com o endereco do "nao responda"
+function aplicarResponderFixo() {
+  const fixo = CFG.responder_fixo, campo = $('#m-responder');
+  if (!fixo) return;
+  campo.value = fixo; campo.readOnly = true; campo.classList.add('travado');
+  campo.title = 'Definido em Configurações: as respostas vão para este endereço, e não para quem enviou.';
+  document.querySelector('label[for=m-responder]').textContent = 'Respostas vão para (fixo)';
+}
+// Aviso automatico que sai no fim de todo e-mail (mostrado na previa)
+const rodapePrevia = () => CFG.rodape ? `<hr style="border:none;border-top:1px solid #dcdce6;margin:28px 0 10px"><p style="font-size:12px;line-height:1.4;color:#6b6b80;margin:0">${esc(CFG.rodape)}</p>` : '';
 function limparFormulario() {
   SEL.clear(); LISTA = null; LISTA_NOME = ''; ANEXOS = []; renderAnexos();
   ['#m-titulo', '#m-assunto', '#m-responder', '#b-tamanho'].forEach(s => $(s).value = '');
+  aplicarResponderFixo();
   $('#b-qtd-blocos').value = 1; editor.innerHTML = ''; $('#editor-html').value = ''; $('#lista-resultado').innerHTML = '';
   etapa = 1; if (AD.length) renderAD();
 }
@@ -712,7 +724,7 @@ async function duplicar(id) {
     const d = await chamar(`/api/email/disparos/${id}`);
     limparFormulario();
     $('#m-titulo').value = d.titulo + ' (cópia)'; $('#m-assunto').value = d.assunto; $('#m-remetente').value = d.remetente_nome || CFG.remetente_nome;
-    $('#m-responder').value = d.responder_para || ''; editor.innerHTML = d.corpo_html;
+    $('#m-responder').value = d.responder_para || ''; aplicarResponderFixo(); editor.innerHTML = d.corpo_html;
     const dest = await chamar(`/api/email/disparos/${id}/destinatarios`);
     if (ORIGEM === 'lista') { LISTA = dest; LISTA_NOME = d.lista_nome || `lista do disparo nº ${id}`; renderLista({ validos: dest, invalidos: [], duplicados: 0, total_invalidos: 0 }); }
     else { if (!AD.length) await carregarAD(false); dest.forEach(x => SEL.add(x.email)); renderAD(); }

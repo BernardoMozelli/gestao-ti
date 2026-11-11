@@ -113,6 +113,8 @@ def _enviar_por_email(v: dict, senha: str, admin: Administrador, senha_email: st
     msg = EmailMessage()
     msg["Subject"] = "Sua nova senha do Wi-Fi da Prefeitura de Santa Luzia"
     msg["From"] = formataddr((ajustes.obter("SMTP_FROM_NOME"), remetente))
+    if (ajustes.obter("EMAIL_RESPONDER_PARA") or "").strip():
+        msg["Reply-To"] = ajustes.obter("EMAIL_RESPONDER_PARA").strip()
     msg["To"] = v["email"].strip()
     login = v.get("username") or v.get("cpf")
     msg.set_content(f"Olá, {v['nome'].split()[0]}!\n\nSua senha do Wi-Fi para visitantes foi alterada.\n\n"
